@@ -1,11 +1,13 @@
 ---
 name: kg-init
-description: 把现有笔记归一化成 LLM Wiki 结构。用户的笔记形态各异（散乱目录、Obsidian vault、导出的 doc/pdf、混着图片），本 skill 先扫描体检、生成改造计划并解释「为什么这么改」，等用户确认后才执行「整体归档 + 向前新建」。当用户说「我有一堆旧笔记想改造成知识库」「帮我初始化笔记仓库」「怎么把现有笔记接入这套工具」时使用。与 kg-vault init（建空库）的区别：本 skill 处理**已有内容**的笔记。
+description: 把现有笔记归一化成 LLM Wiki 结构。用户的笔记形态各异（散乱目录、Obsidian vault、导出的 doc/pdf、混着图片），本 skill 先扫描体检、生成改造计划并解释「为什么这么改」，等用户确认后才执行「整体归档 + 向前新建」。当用户说「我有一堆旧笔记想改造成知识库」「帮我初始化笔记仓库」「怎么把现有笔记接入这套工具」时使用。建结构与模板都归本 skill（`templates/`）；kg-vault 只负责事后注册路径。空目录也可用本 skill 建标准结构。
 ---
 
 # kg-init · 把现有笔记改造成 LLM Wiki
 
-`kg-vault init` 建的是**空库**。但大多数人手上是**已有一堆笔记**——
+典型场景：进到一个旧笔记仓库，**先用本 skill 改造，再用 kg-vault 注册路径**。
+
+大多数人手上是**已有一堆笔记**——
 散乱目录、Obsidian vault、导出的 Confluence 文档、几千张截图混在里面。
 本 skill 负责把这些**归一化**成统一结构，好让其他 kg-* skill 能正常工作。
 
@@ -66,9 +68,22 @@ python scripts/extract_topics.py <笔记目录>/archive
 # 2. 注册知识库，让其他 skill 能找到
 python ../kg-vault/scripts/vault_cli.py add <笔记目录>
 
-# 3. 陪用户改 AGENTS.md（模板只是起点）
+# 3. 陪用户改 AGENTS.md（templates/AGENTS.md 只是起点）
 #    尤其「写作约定」和「领域划分」——那是最个人化的部分
 ```
+
+## 与 kg-vault 的分工
+
+```
+旧笔记仓库 / 空目录
+   ↓  本 skill（kg-init）   ← 建结构、从 templates/ 生成 AGENTS.md，先出计划让用户确认
+标准的知识库结构
+   ↓  kg-vault              ← 注册路径、切换默认
+其他 skill 能找到它了
+```
+
+**模板在本 skill 的 `templates/`**（`AGENTS.md` / `index.md` / `log.md`）——
+改模板 = 改所有新库的起点。
 
 ## 改造策略：整体归档 + 向前新建
 

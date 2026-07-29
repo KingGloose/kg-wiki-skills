@@ -24,8 +24,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# 模板归 kg-vault 维护（它是"建库"的主人），本 skill 复用
-TEMPLATES = Path(__file__).resolve().parent.parent.parent / "kg-vault" / "templates"
+# 模板是本 skill 的自带资源 —— 建结构是 kg-init 的职责
+TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 NEW_DIRS = ("wiki", "raw", "assets")
 NEW_FILES = ("AGENTS.md", "index.md", "log.md")
 ARCHIVE = "archive"
@@ -195,7 +195,7 @@ def cmd_apply(args) -> int:
         return 1
     if not TEMPLATES.is_dir():
         eprint(f"[错误] 找不到模板目录 {TEMPLATES}")
-        eprint("       模板由 kg-vault 维护，检查仓库是否完整（kg-vault/templates/）")
+        eprint("       检查仓库是否完整（应有 kg-init/templates/）")
         return 1
 
     s = survey(root)

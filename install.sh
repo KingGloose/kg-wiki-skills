@@ -198,7 +198,11 @@ else
   echo ""
   echo "    没有现成知识库？用模板新建："
 
-  echo "      python kg-vault/scripts/vault_cli.py init ~/my-vault   # 自动建结构+注册"
+  echo "      # 旧笔记要改造 / 新建空库："
+  echo "      python kg-init/scripts/migrate.py plan ~/my-vault      # 先看计划"
+  echo "      python kg-init/scripts/migrate.py apply ~/my-vault --confirm"
+  echo "      # 再注册："
+  echo "      python kg-vault/scripts/vault_cli.py add ~/my-vault"
 
 fi
 

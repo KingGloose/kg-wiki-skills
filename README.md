@@ -48,8 +48,8 @@ AI 时代，个人笔记的价值变了。
 
 | skill | 能力 |
 |-------|------|
-| `kg-vault` | **知识库注册与切换**。`init` 从模板建空库 / `add` 注册已有库 / `use` 切换默认 / `which` 查当前用哪个。多库无默认时会要求询问用户而非瞎猜 |
-| `kg-init` | **把现有笔记归一化**。已有一堆散乱笔记？先体检 → 出改造计划并解释理由 → 用户确认后执行「整体归档 + 向前新建」。不改内容、不删文件、可回滚 |
+| `kg-init` | **建库 / 改造现有笔记**。已有一堆散乱笔记？先体检 → 出改造计划并解释理由 → 用户确认后执行「整体归档 + 向前新建」。持有 `templates/`。不改内容、不删文件、可回滚 |
+| `kg-vault` | **路径管理**。`add` 注册 / `use` 切换默认 / `which` 查当前用哪个 / `doctor` 体检配置。只管"库在哪"，不建库 |
 
 ### 底层能力（被上层调用）
 
@@ -200,7 +200,7 @@ AI 在任何工作目录都能发现并调用；库的位置靠上面的解析�
 
 ```
 your-vault/
-├── AGENTS.md    维护契约（kg-vault 会从模板生成）
+├── AGENTS.md    维护契约（kg-init 从模板生成）
 ├── index.md     知识点唤醒索引
 ├── log.md       流水账
 ├── wiki/        沉淀的知识，按领域分子目录
@@ -209,13 +209,14 @@ your-vault/
 └── learning/    学习计划（kg-learn 自动创建）
 ```
 
-没有现成的库？用 `kg-vault` 一条命令建好（含目录结构、三个根文件、并自动注册）：
+没有现成的库？用 `kg-init` 建（空目录也行）：
 
 ```bash
-cd kg-vault && python scripts/vault_cli.py init ~/my-vault
+cd kg-init && python scripts/migrate.py apply ~/my-vault --confirm
+cd ../kg-vault && python scripts/vault_cli.py add ~/my-vault    # 再注册
 ```
 
-模板在 `kg-vault/templates/`（`AGENTS.md` / `index.md` / `log.md`），
+模板在 `kg-init/templates/`（`AGENTS.md` / `index.md` / `log.md`），
 建库后**按自己习惯改 `AGENTS.md`** —— 尤其「写作约定」和「领域划分」。
 
 ---

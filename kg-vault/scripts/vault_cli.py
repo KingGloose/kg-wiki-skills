@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""知识库注册与切换 —— 解决"往哪写"这一个问题。
+"""知识库注册与切换 —— 只解决"库在哪"这一个问题。
+
+**不负责创建知识库**——建新库或改造旧笔记是 kg-init 的职责（它有模板）。
+本 skill 只管：注册路径、切换默认、告诉别人当前用哪个。
 
 所有其他 kg-* skill 都靠这里的配置定位知识库。配置在
 `~/.config/kg-wiki/config.json`。
@@ -7,8 +10,7 @@
 用法:
   python vault_cli.py which                    # 当前会用哪个库（AI 拿不准时先跑这个）
   python vault_cli.py list                     # 列出已注册的库
-  python vault_cli.py init <路径> [--name 别名]  # 从模板建新库并注册
-  python vault_cli.py add <路径> [--name 别名]   # 把已有目录注册进来
+  python vault_cli.py add <路径> [--name 别名]   # 注册已有的知识库
   python vault_cli.py use <别名>                # 切换默认库
   python vault_cli.py remove <别名>             # 移除注册（不删目录）
   python vault_cli.py doctor                   # 检查配置与各库健康
@@ -19,13 +21,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import shutil
 import sys
 from pathlib import Path
 
 CONFIG_PATH = Path.home() / ".config" / "kg-wiki" / "config.json"
-# 模板是本 skill 的自带资源（bundled resource）
-TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
+# 判断"是否知识库"用的标记（只读检查，不负责创建——创建归 kg-init）
 VAULT_DIRS = ("wiki", "raw", "assets")
 VAULT_FILES = ("AGENTS.md", "index.md", "log.md")
 
@@ -161,29 +161,29 @@ def _register(path: Path, name: str | None, *, created: bool) -> int:
 
 
 def cmd_init(args) -> int:
+    """本 skill 不建库 —— 那是 kg-init 的职责。这里只做引导。"""
     path = Path(args.path).expanduser().resolve()
     if looks_like_vault(path):
-        eprint(f"[i] {path} 已经是知识库，直接注册（不覆盖任何文件）")
+        eprint(f"[i] {path} 已经是知识库，直接注册")
         return _register(path, args.name, created=False)
-    if path.exists() and any(path.iterdir()):
-        eprint(f"[错误] {path} 已存在且非空，但不像知识库。")
-        eprint("       为安全起见不动它。请换个空目录，或手动补 AGENTS.md + wiki/ 后用 add。")
-        return EXIT_ERR
-    if not TEMPLATES.is_dir():
-        eprint(f"[错误] 找不到模板目录 {TEMPLATES}")
-        return EXIT_ERR
 
-    for d in VAULT_DIRS:
-        (path / d).mkdir(parents=True, exist_ok=True)
-    for f in VAULT_FILES:
-        src = TEMPLATES / f
-        if src.is_file():
-            shutil.copy2(src, path / f)
-    print(f"✅ 已创建知识库结构于 {path}")
-    print(f"   目录: {', '.join(VAULT_DIRS)}")
-    print(f"   文件: {', '.join(VAULT_FILES)}（来自 templates/）")
-    print("\n下一步：按自己的习惯改 AGENTS.md（尤其「写作约定」和「领域划分」）")
-    return _register(path, args.name, created=True)
+    eprint(f"[错误] {path} 还不是知识库，本 skill 不负责创建。")
+    eprint("")
+    eprint("       建库/改造请用 kg-init（它有模板，且会先给你看计划）：")
+    eprint("")
+    if path.exists() and any(path.iterdir()):
+        eprint(f"       # 这个目录已有内容 → 走「改造」流程")
+        eprint(f"       cd ../kg-init")
+        eprint(f'       python scripts/analyze_notes.py "{path}"      # 先体检')
+        eprint(f'       python scripts/migrate.py plan "{path}"       # 看改造计划')
+        eprint(f'       python scripts/migrate.py apply "{path}" --confirm')
+    else:
+        eprint(f"       # 空目录 → 走「新建」流程")
+        eprint(f"       cd ../kg-init")
+        eprint(f'       python scripts/migrate.py apply "{path}" --confirm')
+    eprint("")
+    eprint(f'       完成后再回来注册：python scripts/vault_cli.py add "{path}"')
+    return EXIT_ERR
 
 
 def cmd_add(args) -> int:
@@ -193,7 +193,7 @@ def cmd_add(args) -> int:
         return EXIT_ERR
     if not looks_like_vault(path):
         eprint(f"[错误] {path} 不像知识库（需要 AGENTS.md 和 wiki/ 目录）")
-        eprint("       想新建请用 init；已有内容请手动补齐这两项再 add")
+        eprint("       建库/改造旧笔记请先用 kg-init（有模板，会先出计划）,完成后再 add")
         return EXIT_ERR
     return _register(path, args.name, created=False)
 
@@ -229,7 +229,6 @@ def cmd_remove(args) -> int:
 def cmd_doctor(args) -> int:
     print(f"# 配置检查\n")
     print(f"配置文件: {CONFIG_PATH} {'✅ 存在' if CONFIG_PATH.is_file() else '✗ 不存在'}")
-    print(f"模板目录: {TEMPLATES} {'✅ 存在' if TEMPLATES.is_dir() else '✗ 不存在'}")
     import os
     env = os.environ.get("KG_VAULT")
     if env:
@@ -270,7 +269,7 @@ def main() -> int:
     sub.add_parser("list", help="列出已注册的库")
     sub.add_parser("doctor", help="检查配置与各库健康")
 
-    p_init = sub.add_parser("init", help="从模板创建新库并注册")
+    p_init = sub.add_parser("init", help="（已不建库）注册已有库；未建则引导去 kg-init")
     p_init.add_argument("path")
     p_init.add_argument("--name", default=None, help="别名（默认取目录名）")
 

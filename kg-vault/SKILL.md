@@ -1,13 +1,26 @@
 ---
 name: kg-vault
-description: 知识库注册与切换——解决「往哪写」这一个问题。所有其他 kg-* skill 都靠它的配置定位知识库。当用户说「我的知识库在 X」「新建一个知识库」「切换到工作库」「有哪些知识库」，或**任何 kg-* skill 报「找不到知识库」时**使用。提供 which（当前用哪个）/ list / init（从模板建新库）/ add / use（切换默认）/ remove / doctor。多个库且无默认时会明确要求询问用户，而不是瞎猜。
+description: 知识库路径管理——只解决「库在哪」这一个问题。所有其他 kg-* skill 都靠它的配置定位知识库。当用户说「我的知识库在 X」「切换到工作库」「有哪些知识库」，或**任何 kg-* skill 报「找不到知识库」时**使用。提供 which（当前用哪个）/ list / add（注册）/ use（切换默认）/ remove / doctor。多个库且无默认时会明确要求询问用户而非瞎猜。**不负责创建知识库**——建新库或改造旧笔记走 kg-init。
 ---
 
 # kg-vault · 知识库在哪
 
-**这是前置 skill。** 其他 kg-* skill 要读写知识库，都得先知道库在哪——那个"哪"由这里管。
+**只管一件事：库在哪。** 其他 kg-* skill 要读写知识库，都得先知道路径——那个"哪"由这里管。
 
 配置在 `~/.config/kg-wiki/config.json`。
+
+## 与 kg-init 的分工（别搞混）
+
+```
+旧笔记仓库 / 空目录
+   ↓  kg-init      ← 建结构、建 AGENTS.md（它有模板），会先出计划让用户确认
+标准的知识库结构
+   ↓  kg-vault     ← 注册路径、切换默认（本 skill）
+其他 skill 能找到它了
+```
+
+**本 skill 不建库、不改文件、不碰内容**，只维护"路径 → 别名"的映射。
+遇到还不是知识库的目录，会引导去 kg-init。
 
 ## 何时用
 
@@ -27,8 +40,8 @@ python scripts/vault_cli.py which            # 当前会用哪个库（拿不准
 python scripts/vault_cli.py list             # 列出已注册的库
 python scripts/vault_cli.py doctor           # 检查配置与各库健康
 
-python scripts/vault_cli.py init <路径> [--name 别名]   # 从模板建新库并注册
-python scripts/vault_cli.py add  <路径> [--name 别名]   # 注册已有的库目录
+python scripts/vault_cli.py add  <路径> [--name 别名]   # 注册知识库
+python scripts/vault_cli.py init <路径>                 # 已弃用：会引导你去 kg-init
 python scripts/vault_cli.py use  <别名>                 # 切换默认库
 python scripts/vault_cli.py remove <别名>               # 移除注册（不删目录）
 ```
@@ -49,40 +62,14 @@ python scripts/vault_cli.py remove <别名>               # 移除注册（不�
 
 **必须问**：
 - 一个都没注册 → 问「你的知识库在哪个目录？」
-  - 已有库 → `add <路径>`
-  - 没有库 → `init <路径>`（从 `templates/` 创建骨架）
+  - **已经是标准结构** → `add <路径>`
+  - **是旧笔记 / 空目录** → 先走 **kg-init**（改造/建结构），完成后再 `add`
 - 多个有效库但没指定默认 → 问「这次要写到哪个库？」
   - 单次：其他脚本加 `--vault <路径>`
   - 长期：`use <别名>`
 - 注册的路径都失效了（目录被移动/删除）→ 问新路径
 
 **不要猜路径。** 猜错会把内容写到不该去的地方。
-
-## init 会做什么
-
-```
-<路径>/
-├── AGENTS.md    ← 从 kg-vault/templates/ 复制（维护契约，所有 skill 都依赖它）
-├── index.md     ← 唤醒索引骨架
-├── log.md       ← 流水账格式说明
-├── wiki/        ← 沉淀的知识
-├── raw/         ← 原始资料留档
-└── assets/      ← 图片
-```
-
-**安全约束**：
-- 目标已是知识库 → 只注册，**不覆盖任何文件**
-- 目标存在且非空但不像知识库 → **拒绝操作**（避免污染别人的目录），提示用空目录或手动补齐后 `add`
-
-创建后要提醒用户：**按自己习惯改 `AGENTS.md`**，尤其「写作约定」和「领域划分」——
-那份是模板，不改也能用，但改过才贴合自己。
-
-## 模板
-
-模板是本 skill 的自带资源，在 `kg-vault/templates/`：`AGENTS.md` / `index.md` / `log.md`。
-`kg-init`（改造现有笔记）也复用这份模板 —— 建库这件事归本 skill 管，模板自然放这里。
-
-**改模板 = 改所有新库的起点。** 若想调整默认契约，改 `templates/AGENTS.md`。
 
 ## 配置格式
 
@@ -116,7 +103,7 @@ python scripts/vault_cli.py remove <别名>               # 移除注册（不�
 
 ## 边界
 
-- 只管"库在哪"，不碰库里的内容
+- **只管"库在哪"**，不建库、不改文件、不碰内容
 - `remove` 只移除注册，**不删目录**（不做危险的事）
-- `init` 不覆盖已有文件
+- 遇到非知识库目录 → 引导去 kg-init，不自己动手创建
 - 配置只存路径，不存任何凭证
