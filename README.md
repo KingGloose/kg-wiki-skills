@@ -127,6 +127,19 @@ bash install.sh --minimal   # 跳过 Docling(~1GB) 和 Whisper 模型(~1.5GB)
 bash install.sh --no-link   # 不注册到全局
 ```
 
+### 挂到知识库里（可选，但推荐）
+
+如果你的知识库是个 git 仓库，建议用**相对路径软链**把工具挂进去，
+这样两边都能独立版本管理，且跨机器不会因绝对路径失效：
+
+```bash
+# 前提：两个仓库放在同级目录
+cd /path/to/your-vault
+ln -s ../kg-wiki-skills skills
+```
+
+git 会把它记为符号链接（mode 120000，只存路径字符串），不会把工具内容塞进知识库仓库。
+
 ### 指定你的知识库
 
 skills 需要知道往哪写。三种方式，按优先级：
