@@ -127,32 +127,48 @@ bash install.sh --minimal   # 跳过 Docling(~1GB) 和 Whisper 模型(~1.5GB)
 bash install.sh --no-link   # 不注册到全局
 ```
 
-### 挂到知识库里（可选，但推荐）
-
-如果你的知识库是个 git 仓库，建议用**相对路径软链**把工具挂进去，
-这样两边都能独立版本管理，且跨机器不会因绝对路径失效：
-
-```bash
-# 前提：两个仓库放在同级目录
-cd /path/to/your-vault
-ln -s ../kg-wiki-skills skills
-```
-
-git 会把它记为符号链接（mode 120000，只存路径字符串），不会把工具内容塞进知识库仓库。
-
 ### 指定你的知识库
 
-skills 需要知道往哪写。三种方式，按优先级：
+skills 需要知道往哪读写。**四级解析**，前面命中就不往下找：
 
 ```bash
-# 1. 环境变量（推荐）
+# 1. 命令行显式指定（临时覆盖，优先级最高）
+python scripts/xxx.py --vault /path/to/vault
+
+# 2. 环境变量
 export KG_VAULT=/path/to/your-vault
 
-# 2. 配置文件 ~/.config/kg-wiki/config.json
+# 3. 配置文件 ~/.config/kg-wiki/config.json
 {"vault": "/path/to/your-vault"}
 
-# 3. 在知识库目录内执行命令（自动向上查找）
+# 4. 在知识库目录内执行（自动向上查找含 AGENTS.md + wiki/ 的目录）
 ```
+
+**多个知识库**（如工作/个人分开）用这个格式：
+
+```json
+{
+  "default": "personal",
+  "vaults": {
+    "personal": "/path/to/personal-vault",
+    "work": "/path/to/work-vault"
+  }
+}
+```
+
+切换用 `--vault /path/to/work-vault`，或改 `default`。
+
+> **找不到知识库时**，脚本不会瞎猜路径，而是提示 AI **直接问用户**，
+> 拿到路径后可一行写进配置：
+> ```bash
+> python -c "from media_to_text import save_config; save_config('/path/to/vault')"
+> ```
+
+### 不需要放进知识库
+
+工具**不必**软链或复制到知识库目录里。安装脚本已把本仓库注册到 `~/.agents/skills/`，
+AI 在任何工作目录都能发现并调用；库的位置靠上面的解析机制确定。
+**知识库保持纯粹——只放知识。**
 
 **知识库的最小结构**（需要 `AGENTS.md` 和 `wiki/` 才能被识别）：
 

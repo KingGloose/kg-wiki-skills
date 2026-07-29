@@ -48,9 +48,17 @@ def _walk_up(start: Path, limit: int = 8) -> Path | None:
     return None
 
 
-def find_vault() -> Path:
-    """定位知识库根。优先级：KG_VAULT 环境变量 → 配置文件 → cwd 向上 → 本文件向上。"""
+def find_vault(explicit: str | None = None) -> Path:
+    """定位知识库根。
+
+    优先级：explicit(--vault) → KG_VAULT 环境变量 → 配置文件 → cwd 向上 → 本文件向上。
+    """
     import os
+    if explicit:
+        p = Path(explicit).expanduser().resolve()
+        if _looks_like_vault(p):
+            return p
+        sys.exit(f"[错误] --vault 指向 {p}，但那里不像知识库（需 AGENTS.md + wiki/）")
     v = os.environ.get("KG_VAULT")
     if v:
         p = Path(v).expanduser().resolve()
@@ -75,17 +83,20 @@ def find_vault() -> Path:
             return p
 
     sys.exit(
-        "[错误] 找不到知识库。请用以下任一方式指定：\n"
-        "  1. export KG_VAULT=/path/to/your-vault\n"
-        f"  2. 写入 {cfg}：{{\"vault\": \"/path/to/your-vault\"}}\n"
-        "  3. 在知识库目录内执行\n"
-        "知识库需包含 AGENTS.md 和 wiki/ 目录。"
+        "[错误] 找不到知识库 —— 不知道该读写哪里。\n"
+        "\n【给 AI 的指示】不要猜路径，直接问用户「你的知识库在哪个目录？」\n"
+        "拿到路径后任选一种方式：\n"
+        "  1. 本次临时：  加 --vault /path/to/vault\n"
+        f"  2. 长期配置：  写入 {cfg}\n"
+        '                 内容 {"vault": "/path/to/vault"}\n'
+        "  3. 环境变量：  export KG_VAULT=/path/to/vault\n"
+        "\n知识库需包含 AGENTS.md 和 wiki/ 目录。没有的话用仓库 templates/ 新建。"
     )
 
 
 
-VAULT = find_vault()
-WIKI = VAULT / "wiki"
+VAULT = None  # 在 main() 里按 --vault 解析
+WIKI = None  # 随 VAULT 在 main() 里初始化
 REVIEW_LOG = Path(__file__).resolve().parent.parent / ".review-log.json"
 
 STRATEGIES = ("stale", "recent", "random", "orphanish")
@@ -169,7 +180,13 @@ def main() -> int:
     ap.add_argument("--mark", default=None, help="标记某页已回顾（传相对路径）")
     ap.add_argument("--status", action="store_true", help="显示所有页的回顾情况")
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--vault", default=None,
+                    help="知识库路径（默认自动解析：KG_VAULT / 配置文件 / 向上查找）")
     args = ap.parse_args()
+
+    global VAULT, WIKI
+    VAULT = find_vault(args.vault)
+    WIKI = VAULT / "wiki"
 
     log = load_log()
     reviews: dict = log["reviews"]

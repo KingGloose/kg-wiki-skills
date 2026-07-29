@@ -52,12 +52,32 @@ def _from_env() -> Path | None:
 
 
 def _from_config() -> Path | None:
+    """从配置文件读。支持两种格式：
+
+    单库:  {"vault": "/path/to/vault"}
+    多库:  {"default": "work", "vaults": {"work": "/path/a", "personal": "/path/b"}}
+    """
     if not CONFIG_PATH.is_file():
         return None
     try:
         data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return None
+
+    # 多库格式
+    vaults = data.get("vaults")
+    if isinstance(vaults, dict) and vaults:
+        name = data.get("default") or next(iter(vaults))
+        v = vaults.get(name)
+        if v:
+            p = Path(v).expanduser().resolve()
+            if looks_like_vault(p):
+                return p
+            raise VaultNotFoundError(
+                f"配置里的库 '{name}' 指向 {p}，但那里不像知识库。"
+            )
+
+    # 单库格式
     v = data.get("vault")
     if not v:
         return None
@@ -67,6 +87,22 @@ def _from_config() -> Path | None:
     raise VaultNotFoundError(
         f"配置文件 {CONFIG_PATH} 里的 vault 指向 {p}，但那里不像知识库。"
     )
+
+
+def list_vaults() -> dict[str, str]:
+    """列出配置里的所有库（多库格式时有用）。"""
+    if not CONFIG_PATH.is_file():
+        return {}
+    try:
+        data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return {}
+    out = {}
+    if isinstance(data.get("vaults"), dict):
+        out.update({k: str(v) for k, v in data["vaults"].items()})
+    if data.get("vault"):
+        out.setdefault("default", str(data["vault"]))
+    return out
 
 
 def _walk_up(start: Path, limit: int = 8) -> Path | None:
@@ -80,12 +116,26 @@ def _walk_up(start: Path, limit: int = 8) -> Path | None:
     return None
 
 
-def find_vault(hint: str | Path | None = None) -> Path:
-    """返回知识库根目录。找不到时抛 VaultNotFoundError（带指引）。
+def find_vault(hint: str | Path | None = None,
+               explicit: str | Path | None = None) -> Path:
+    """返回知识库根目录。找不到时抛 VaultNotFoundError（带可操作指引）。
+
+    解析优先级：
+        explicit（命令行 --vault）→ KG_VAULT 环境变量 → 配置文件
+        → 从 cwd 向上找 → 从 hint 向上找
 
     Args:
-        hint: 可选的起点路径（通常是调用方的 __file__），用于向上查找。
+        hint: 调用方 __file__，用于向上查找（skills 在库内时有效）
+        explicit: 显式指定的路径（通常来自命令行 --vault），优先级最高
     """
+    if explicit:
+        p = Path(explicit).expanduser().resolve()
+        if looks_like_vault(p):
+            return p
+        raise VaultNotFoundError(
+            f"--vault 指向 {p}，但那里不像知识库（需要 AGENTS.md 和 wiki/ 目录）。"
+        )
+
     p = _from_env()
     if p:
         return p
@@ -104,13 +154,24 @@ def find_vault(hint: str | Path | None = None) -> Path:
         if p:
             return p
 
+    known = list_vaults()
+    hint_lines = ""
+    if known:
+        hint_lines = "\n配置里已有这些库（但当前都不可用，可能路径已变）：\n" + "\n".join(
+            f"  · {k}: {v}" for k, v in known.items())
+
     raise VaultNotFoundError(
-        "找不到知识库。请用以下任一方式指定：\n"
-        "  1. 环境变量：  export KG_VAULT=/path/to/your-vault\n"
-        f"  2. 配置文件：  {CONFIG_PATH}\n"
-        '                 内容 {"vault": "/path/to/your-vault"}\n'
-        "  3. 在知识库目录内执行命令\n"
-        "\n知识库需要包含 AGENTS.md 和 wiki/ 目录。"
+        "找不到知识库 —— 不知道该把内容写到哪里。\n"
+        f"{hint_lines}\n"
+        "\n【给 AI 的指示】不要猜测路径，直接问用户：「你的知识库在哪个目录？」\n"
+        "拿到路径后用下面任一方式固化（推荐第 2 种，一次配置长期有效）：\n"
+        "  1. 本次临时：   加 --vault /path/to/vault 参数\n"
+        "  2. 长期配置：   python -c \"from media_to_text import save_config; "
+        "save_config('/path/to/vault')\"\n"
+        f"                 （写入 {CONFIG_PATH}）\n"
+        "  3. 环境变量：   export KG_VAULT=/path/to/vault\n"
+        "\n知识库需包含 AGENTS.md 和 wiki/ 目录。"
+        "\n没有现成的库？用仓库里的 templates/ 新建一个。"
     )
 
 

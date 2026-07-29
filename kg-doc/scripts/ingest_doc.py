@@ -30,9 +30,9 @@ from media_to_text import to_text, MediaToTextError
 
 # 库根：优先 KG_VAULT 环境变量 / ~/.config/kg-wiki/config.json，
 # 否则从 cwd 或本文件位置向上找（含 AGENTS.md + wiki/ 的目录）
-from media_to_text import find_vault
-REPO_ROOT = find_vault(__file__)
-RAW_DIR = REPO_ROOT / "raw"
+from media_to_text import find_vault, VaultNotFoundError
+REPO_ROOT = None  # 在 main() 里按 --vault 解析
+RAW_DIR = None  # 同上
 
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
@@ -259,9 +259,19 @@ def main() -> int:
                     help=f"批量时限定扩展名，逗号分隔。默认: {','.join(BATCH_EXTS)}")
     ap.add_argument("--force", action="store_true", help="批量时覆盖已存在的输出")
     ap.add_argument("--out", default=None, help="输出 md 路径（单文件/URL 有效）")
+    ap.add_argument("--vault", default=None,
+                    help="知识库路径（默认自动解析：KG_VAULT / 配置文件 / 向上查找）")
     ap.add_argument("--stdout", action="store_true", help="只打到 stdout，不写文件")
     ap.add_argument("--title", default=None, help="自定义标题")
     args = ap.parse_args()
+
+    global REPO_ROOT, RAW_DIR
+    try:
+        REPO_ROOT = find_vault(__file__, explicit=args.vault)
+    except VaultNotFoundError as e:
+        eprint(f"[错误] {e}")
+        return 2
+    RAW_DIR = REPO_ROOT / "raw"
 
     # URL
     if is_url(args.path):

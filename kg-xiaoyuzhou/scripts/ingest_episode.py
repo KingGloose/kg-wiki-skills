@@ -31,9 +31,9 @@ from bs4 import BeautifulSoup
 
 # 库根：优先 KG_VAULT 环境变量 / ~/.config/kg-wiki/config.json，
 # 否则从 cwd 或本文件位置向上找（含 AGENTS.md + wiki/ 的目录）
-from media_to_text import find_vault
-REPO_ROOT = find_vault(__file__)
-RAW_DIR = REPO_ROOT / "raw"
+from media_to_text import find_vault, VaultNotFoundError
+REPO_ROOT = None  # 在 main() 里按 --vault 解析
+RAW_DIR = None  # 同上
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
 
@@ -167,6 +167,8 @@ def main() -> int:
     ap.add_argument("url", help="小宇宙单集链接")
     ap.add_argument("--transcribe", action="store_true", help="下载音频并本地 ASR 转写")
     ap.add_argument("--model", default=None, help="指定 ASR 模型")
+    ap.add_argument("--vault", default=None,
+                    help="知识库路径（默认自动解析：KG_VAULT / 配置文件 / 向上查找）")
     ap.add_argument("--stdout", action="store_true", help="只打到 stdout，不落盘")
     ap.add_argument("--out", default=None, help="自定义输出路径")
     ap.add_argument("--keep-audio", action="store_true", help="转写后保留音频文件")
@@ -177,6 +179,14 @@ def main() -> int:
                     help="主播/嘉宾姓名热词。**人名必须用这个参数**，不要用 --hotword："
                          "实测人名必须放进“我是…”句式才能纠对（例：--hotword-speaker 携隐Melody）")
     args = ap.parse_args()
+
+    global REPO_ROOT, RAW_DIR
+    try:
+        REPO_ROOT = find_vault(__file__, explicit=args.vault)
+    except VaultNotFoundError as e:
+        eprint(f"[错误] {e}")
+        return 2
+    RAW_DIR = REPO_ROOT / "raw"
 
     if "xiaoyuzhoufm.com" not in args.url:
         eprint("[warn] URL 不像小宇宙链接，仍尝试解析")

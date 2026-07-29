@@ -28,9 +28,9 @@ from pathlib import Path
 
 # 库根：优先 KG_VAULT 环境变量 / ~/.config/kg-wiki/config.json，
 # 否则从 cwd 或本文件位置向上找（含 AGENTS.md + wiki/ 的目录）
-from media_to_text import find_vault
-REPO_ROOT = find_vault(__file__)
-RAW_DIR = REPO_ROOT / "raw"
+from media_to_text import find_vault, VaultNotFoundError
+REPO_ROOT = None  # 在 main() 里按 --vault 解析
+RAW_DIR = None  # 同上
 
 # 默认字幕语言优先级：中文 → 英文 → 英文自动翻译
 DEFAULT_LANGS = ["zh-Hans", "zh-CN", "zh", "en", "en-orig"]
@@ -206,9 +206,19 @@ def main() -> int:
                     help=f"字幕语言优先级，逗号分隔。默认: {','.join(DEFAULT_LANGS)}")
     ap.add_argument("--asr", action="store_true", help="跳过字幕，直接本地转写")
     ap.add_argument("--model", default=None, help="指定 ASR 模型")
+    ap.add_argument("--vault", default=None,
+                    help="知识库路径（默认自动解析：KG_VAULT / 配置文件 / 向上查找）")
     ap.add_argument("--stdout", action="store_true", help="只打到 stdout，不落盘")
     ap.add_argument("--out", default=None, help="自定义输出路径")
     args = ap.parse_args()
+
+    global REPO_ROOT, RAW_DIR
+    try:
+        REPO_ROOT = find_vault(__file__, explicit=args.vault)
+    except VaultNotFoundError as e:
+        eprint(f"[错误] {e}")
+        return 2
+    RAW_DIR = REPO_ROOT / "raw"
 
     require_ytdlp()
     url = args.url
