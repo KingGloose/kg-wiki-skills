@@ -200,7 +200,7 @@ AI 在任何工作目录都能发现并调用；库的位置靠上面的解析�
 
 ```
 your-vault/
-├── AGENTS.md    维护契约（见 templates/AGENTS.md 模板）
+├── AGENTS.md    维护契约（kg-vault 会从模板生成）
 ├── index.md     知识点唤醒索引
 ├── log.md       流水账
 ├── wiki/        沉淀的知识，按领域分子目录
@@ -209,13 +209,14 @@ your-vault/
 └── learning/    学习计划（kg-learn 自动创建）
 ```
 
-没有现成的库？复制 `templates/` 里的模板开始：
+没有现成的库？用 `kg-vault` 一条命令建好（含目录结构、三个根文件、并自动注册）：
 
 ```bash
-mkdir -p ~/my-vault/{wiki,raw,assets}
-cp templates/AGENTS.md templates/index.md templates/log.md ~/my-vault/
-export KG_VAULT=~/my-vault
+cd kg-vault && python scripts/vault_cli.py init ~/my-vault
 ```
+
+模板在 `kg-vault/templates/`（`AGENTS.md` / `index.md` / `log.md`），
+建库后**按自己习惯改 `AGENTS.md`** —— 尤其「写作约定」和「领域划分」。
 
 ---
 

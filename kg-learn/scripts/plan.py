@@ -103,7 +103,7 @@ def find_vault(explicit: str | None = None) -> Path:
         f"  2. 长期配置：  写入 {cfg}\n"
         '                 内容 {"vault": "/path/to/vault"}\n'
         "  3. 环境变量：  export KG_VAULT=/path/to/vault\n"
-        "\n知识库需包含 AGENTS.md 和 wiki/ 目录。没有的话用仓库 templates/ 新建。"
+        "\n知识库需包含 AGENTS.md 和 wiki/ 目录。没有的话用 kg-vault 新建（它有模板）。"
     )
 
 

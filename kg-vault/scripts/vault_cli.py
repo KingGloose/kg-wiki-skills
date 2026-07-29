@@ -24,7 +24,8 @@ import sys
 from pathlib import Path
 
 CONFIG_PATH = Path.home() / ".config" / "kg-wiki" / "config.json"
-TEMPLATES = Path(__file__).resolve().parent.parent.parent / "templates"
+# 模板是本 skill 的自带资源（bundled resource）
+TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 VAULT_DIRS = ("wiki", "raw", "assets")
 VAULT_FILES = ("AGENTS.md", "index.md", "log.md")
 

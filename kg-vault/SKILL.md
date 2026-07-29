@@ -62,7 +62,7 @@ python scripts/vault_cli.py remove <别名>               # 移除注册（不�
 
 ```
 <路径>/
-├── AGENTS.md    ← 从 templates/ 复制（维护契约，所有 skill 都依赖它）
+├── AGENTS.md    ← 从 kg-vault/templates/ 复制（维护契约，所有 skill 都依赖它）
 ├── index.md     ← 唤醒索引骨架
 ├── log.md       ← 流水账格式说明
 ├── wiki/        ← 沉淀的知识
@@ -76,6 +76,13 @@ python scripts/vault_cli.py remove <别名>               # 移除注册（不�
 
 创建后要提醒用户：**按自己习惯改 `AGENTS.md`**，尤其「写作约定」和「领域划分」——
 那份是模板，不改也能用，但改过才贴合自己。
+
+## 模板
+
+模板是本 skill 的自带资源，在 `kg-vault/templates/`：`AGENTS.md` / `index.md` / `log.md`。
+`kg-init`（改造现有笔记）也复用这份模板 —— 建库这件事归本 skill 管，模板自然放这里。
+
+**改模板 = 改所有新库的起点。** 若想调整默认契约，改 `templates/AGENTS.md`。
 
 ## 配置格式
 

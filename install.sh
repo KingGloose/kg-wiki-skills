@@ -197,9 +197,9 @@ else
   echo "      或写入 ~/.config/kg-wiki/config.json: {\"vault\": \"/path/to/your-vault\"}"
   echo ""
   echo "    没有现成知识库？用模板新建："
-  echo "      mkdir -p ~/my-vault/{wiki,raw,assets}"
-  echo "      cp templates/{AGENTS.md,index.md,log.md} ~/my-vault/"
-  echo "      export KG_VAULT=~/my-vault"
+
+  echo "      python kg-vault/scripts/vault_cli.py init ~/my-vault   # 自动建结构+注册"
+
 fi
 
 # ---------- 收尾 ----------

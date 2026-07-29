@@ -171,7 +171,7 @@ def find_vault(hint: str | Path | None = None,
         f"                 （写入 {CONFIG_PATH}）\n"
         "  3. 环境变量：   export KG_VAULT=/path/to/vault\n"
         "\n知识库需包含 AGENTS.md 和 wiki/ 目录。"
-        "\n没有现成的库？用仓库里的 templates/ 新建一个。"
+        "\n没有现成的库？用 kg-vault 新建：vault_cli.py init <路径>"
     )
 
 
