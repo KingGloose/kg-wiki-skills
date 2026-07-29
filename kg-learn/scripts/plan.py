@@ -63,7 +63,26 @@ def find_vault(explicit: str | None = None) -> Path:
     cfg = Path.home() / ".config" / "kg-wiki" / "config.json"
     if cfg.is_file():
         try:
-            v = json.loads(cfg.read_text(encoding="utf-8")).get("vault")
+            data = json.loads(cfg.read_text(encoding="utf-8"))
+            # 多库格式：{"default": "名字", "vaults": {"名字": "路径"}}
+            vaults = data.get("vaults")
+            if isinstance(vaults, dict) and vaults:
+                name = data.get("default") or (next(iter(vaults)) if len(vaults) == 1 else None)
+                if name is None:
+                    sys.exit(
+                        "[错误] 配置里有多个知识库但未指定默认：\n"
+                        + "\n".join(f"  · {k}: {v}" for k, v in vaults.items())
+                        + "\n\n【给 AI 的指示】问用户这次要写哪个库，然后："
+                        "\n  临时：加 --vault <路径>"
+                        "\n  长期：kg-vault/scripts/vault_cli.py use <别名>"
+                    )
+                v = vaults.get(name)
+                if v:
+                    p = Path(v).expanduser().resolve()
+                    if _looks_like_vault(p):
+                        return p
+            # 单库格式（向后兼容）
+            v = data.get("vault")
             if v:
                 p = Path(v).expanduser().resolve()
                 if _looks_like_vault(p):

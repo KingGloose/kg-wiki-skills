@@ -44,6 +44,12 @@ AI 时代，个人笔记的价值变了。
 | `kg-zhihu` | 知乎专栏 / 回答 / 问题页（走真实浏览器，绕过 JS 挑战） |
 | `kg-doc` | 本地文档：PDF / Word / PPT / Excel / txt / md，支持文件夹批量与网页 URL |
 
+### 前置：知识库在哪
+
+| skill | 能力 |
+|-------|------|
+| `kg-vault` | **知识库注册与切换**。`init` 从模板建新库 / `add` 注册已有库 / `use` 切换默认 / `which` 查当前用哪个。多库无默认时会要求询问用户而非瞎猜 |
+
 ### 底层能力（被上层调用）
 
 | skill | 能力 |
@@ -129,7 +135,17 @@ bash install.sh --no-link   # 不注册到全局
 
 ### 指定你的知识库
 
-skills 需要知道往哪读写。**四级解析**，前面命中就不往下找：
+**最简单的方式**：用 `kg-vault` 管理（它会写好配置）
+
+```bash
+cd kg-vault && source ../.venv/bin/activate
+
+python scripts/vault_cli.py init ~/my-vault      # 没有库？从模板建一个
+python scripts/vault_cli.py add /path/to/vault   # 已有库？注册进来
+python scripts/vault_cli.py which                # 确认当前用哪个
+```
+
+底层的**四级解析**（所有 skill 通用，前面命中就不往下找）：
 
 ```bash
 # 1. 命令行显式指定（临时覆盖，优先级最高）
@@ -223,7 +239,7 @@ export KG_VAULT=~/my-vault
 | `kg-zhihu` | `base` + `wechat`；浏览器能力依赖 `kg-browser` |
 | `kg-doc` | `base` + `doc` |
 | `kg-browser` | 无 Python 依赖；需 `chrome-devtools-mcp` CLI |
-| `kg-ask` / `kg-lint` / `kg-review` / `kg-learn` / `kg-capture` | 无额外依赖（纯标准库） |
+| `kg-vault` / `kg-ask` / `kg-lint` / `kg-review` / `kg-learn` / `kg-capture` | 无额外依赖（纯标准库） |
 
 ---
 
@@ -231,6 +247,9 @@ export KG_VAULT=~/my-vault
 
 ```bash
 cd kg-wiki-skills && source .venv/bin/activate
+
+# 首次：告诉它你的库在哪
+cd kg-vault && python scripts/vault_cli.py add /path/to/your-vault
 
 # 摄入
 cd kg-doc      && python scripts/ingest_doc.py ~/Downloads/paper.pdf
