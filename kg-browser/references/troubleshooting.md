@@ -57,10 +57,25 @@ npm i -g chrome-devtools-mcp@latest
 
 ### 输出太大刷屏
 
-用 `--filePath` 写文件：
+**`--filePath` 有路径限制**（实测踩过）：daemon 带 `--no-allow-unrestricted-paths`，
+写 `/tmp` 或工作区外的路径会报
+`Access denied: path ... is not within any of the configured workspace roots`。
+
+稳妥做法是**直接取 stdout 再自己落盘**：
+
 ```bash
-chrome-devtools evaluate_script "() => document.querySelector('...').outerHTML" --filePath /tmp/body.html
+chrome-devtools evaluate_script "() => document.querySelector('...').outerHTML" \
+  | python3 -c "
+import sys, re, json, pathlib
+raw = sys.stdin.read()
+m = re.search(r'\`\`\`json\s*(.*?)\`\`\`', raw, re.S)
+html = json.loads(m.group(1).strip()) if m else raw
+pathlib.Path('/tmp/body.html').write_text(html, encoding='utf-8')
+print('saved', len(html), 'chars')
+"
 ```
+
+CLI 的输出格式是 `Script ran on page and returned:` 后跟一个 ```json 代码块。
 
 ## 跨平台
 

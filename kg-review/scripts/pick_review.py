@@ -2,7 +2,7 @@
 """挑几页出来回顾——让沉淀过的知识被重新唤醒。
 
 Karpathy LLM Wiki 模式的隐含前提:知识要被**反复唤醒**才有价值。
-写完就存着 = 死档案。本脚本负责"挑哪几页",实际回顾靠 AI 和主人对话完成。
+写完就存着 = 死档案。本脚本负责"挑哪几页",实际回顾靠 AI 和用户对话完成。
 
 挑选策略(默认 stale,可组合):
   stale     最久没被回顾的优先(靠 .review-log.json 记录上次回顾时间)
@@ -160,6 +160,23 @@ def days_since(ts: float | None) -> float | None:
     return (time.time() - ts) / 86400
 
 
+# 标记「含个人判断」的信号词——回顾这类页时要问"现在还认同吗"
+_JUDGMENT_MARKERS = (
+    "⭐",                                    # 库约定的个人实践标记
+    "我的判断", "我认为", "我倾向", "我原以为",
+    "个人判断", "对照观察", "自己的判断", "我的看法",
+    "踩坑", "教训", "现在回看",
+)
+
+
+def _has_own_judgment(text: str) -> bool:
+    """粗判这页是否含作者自己的判断（而非纯转述）。
+
+    不依赖特定称谓（原实现硬编码了"用户"，换个库就失效）。
+    """
+    return any(m in text for m in _JUDGMENT_MARKERS)
+
+
 def summarize(p: Path) -> dict:
     """提取页面概要，供 AI 组织回顾问题。"""
     text = p.read_text(encoding="utf-8", errors="ignore")
@@ -187,7 +204,7 @@ def summarize(p: Path) -> dict:
         "chars": len(text),
         "gist": gist[:200],
         "sections": heads[:12],
-        "has_own_judgment": ("主人" in text and ("判断" in text or "观察" in text)) or "⭐" in text,
+        "has_own_judgment": _has_own_judgment(text),
     }
 
 
@@ -290,7 +307,7 @@ def main() -> int:
 
     print("---")
     print("回顾方式（给 AI 的提示）:")
-    print("  1. 先只看标题和主旨，问主人「还记得这页讲什么吗」——先回想再看答案，")
+    print("  1. 先只看标题和主旨，问用户「还记得这页讲什么吗」——先回想再看答案，")
     print("     这才是唤醒（直接把内容念一遍等于没回顾）。")
     print("  2. 对含个人判断的页，问「现在还认同当时的判断吗」——知识会过时，判断会变。")
     print("  3. 回顾完用 --mark <路径> 记一笔。")

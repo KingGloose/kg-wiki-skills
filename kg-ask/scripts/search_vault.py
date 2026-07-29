@@ -177,6 +177,10 @@ def load_index(rebuild: bool = False) -> dict:
         idx = json.loads(INDEX_FILE.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, OSError):
         return build_index()
+    # 双保险：索引里记录的库必须与当前库一致
+    if idx.get("vault") != str(VAULT):
+        eprint("[i] 索引属于其他知识库，重建")
+        return build_index()
     # 有文件比索引新就重建（简单策略，够用）
     newest = max((p.stat().st_mtime for p in iter_md()), default=0)
     if newest > idx.get("built_at", 0):
@@ -258,7 +262,12 @@ def main() -> int:
 
     global VAULT, INDEX_FILE
     VAULT = find_vault(args.vault)
-    INDEX_FILE = Path(__file__).resolve().parent.parent / ".vault-index.json"
+    # 索引按库路径哈希命名 —— 否则多库切换时会读到上一个库的索引
+    import hashlib
+    digest = hashlib.sha256(str(VAULT).encode("utf-8")).hexdigest()[:12]
+    cache_dir = Path.home() / ".cache" / "kg-wiki"
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    INDEX_FILE = cache_dir / f"index-{digest}.json"
 
     idx = load_index(rebuild=args.rebuild)
 

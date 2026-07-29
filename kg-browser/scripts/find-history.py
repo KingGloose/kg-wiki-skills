@@ -54,7 +54,7 @@ def expand_keywords(keyword: str) -> list[str]:
     例如：
     - "OA 系统" -> ["oa系统", "oa", "系统"]
     - "综合平台" -> ["综合平台", "综合", "平台"]
-    - "转转办公" -> ["转转办公", "转转", "办公"]
+    - "公司OA" -> ["公司OA", "公司", "OA"]
 
     设计原则：
     - 只做通用的分词处理，不做同义词映射
@@ -344,7 +344,7 @@ _NOISE_PATTERNS = (
 def is_probably_article(url: str, title: str | None) -> bool:
     """粗判这个 URL 是否像一篇具体内容，而非搜索/登录/首页。
 
-    宁可漏掉也不要误留噪声——AI 拿到候选后还会和主人确认。
+    宁可漏掉也不要误留噪声——AI 拿到候选后还会和用户确认。
     """
     u = (url or "").lower()
     if any(p in u for p in _NOISE_PATTERNS):

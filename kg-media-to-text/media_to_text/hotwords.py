@@ -82,7 +82,7 @@ def extract_hotwords(
         if w not in ordered:
             ordered.append(w)
 
-    # 1. 人工补充最优先——主人明确指定的一定要保住
+    # 1. 人工补充最优先——用户明确指定的一定要保住
     for w in extra or []:
         push(w)
 

@@ -47,7 +47,7 @@ chrome-devtools navigate_page "<url>"            # 当前标签导航
 
 chrome-devtools take_snapshot                    # 页面结构快照（拿 uid 用于交互）
 chrome-devtools evaluate_script "() => ..."      # ★ 主力：在页面里执行任意 JS
-chrome-devtools evaluate_script "() => ..." --filePath /tmp/out.json   # 大输出写文件
+chrome-devtools evaluate_script "() => ..."       # 大输出见下方「输出太大怎么办」
 
 chrome-devtools click "<uid>"                    # 点击（如"展开阅读全文"）
 chrome-devtools take_screenshot --filePath /tmp/p.png   # 截图（图表类内容兜底）
@@ -79,7 +79,18 @@ chrome-devtools evaluate_script "() => [...document.querySelectorAll('article,ma
 ### 3. 取正文
 
 ```bash
-chrome-devtools evaluate_script "() => document.querySelector('<选择器>').outerHTML" --filePath /tmp/body.html
+# 注意：--filePath 受 daemon 的 --no-allow-unrestricted-paths 限制，
+# 写 /tmp 或仓库外路径会报 "not within any of the configured workspace roots"。
+# 稳妥做法：直接取 stdout，自己解析出 ```json 代码块里的内容。
+chrome-devtools evaluate_script "() => document.querySelector('<选择器>').outerHTML" \
+  | python3 -c "
+import sys, re, json, pathlib
+raw = sys.stdin.read()
+m = re.search(r'\`\`\`json\s*(.*?)\`\`\`', raw, re.S)
+html = json.loads(m.group(1).strip()) if m else raw
+pathlib.Path('/tmp/body.html').write_text(html, encoding='utf-8')
+print('saved', len(html), 'chars')
+"
 ```
 
 取 `outerHTML` 而非 `innerText`——保留结构（标题层级/代码块/表格/公式）交给
