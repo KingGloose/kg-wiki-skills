@@ -44,11 +44,12 @@ AI 时代，个人笔记的价值变了。
 | `kg-zhihu` | 知乎专栏 / 回答 / 问题页（走真实浏览器，绕过 JS 挑战） |
 | `kg-doc` | 本地文档：PDF / Word / PPT / Excel / txt / md，支持文件夹批量与网页 URL |
 
-### 前置：知识库在哪
+### 前置：知识库在哪、怎么来
 
 | skill | 能力 |
 |-------|------|
-| `kg-vault` | **知识库注册与切换**。`init` 从模板建新库 / `add` 注册已有库 / `use` 切换默认 / `which` 查当前用哪个。多库无默认时会要求询问用户而非瞎猜 |
+| `kg-vault` | **知识库注册与切换**。`init` 从模板建空库 / `add` 注册已有库 / `use` 切换默认 / `which` 查当前用哪个。多库无默认时会要求询问用户而非瞎猜 |
+| `kg-init` | **把现有笔记归一化**。已有一堆散乱笔记？先体检 → 出改造计划并解释理由 → 用户确认后执行「整体归档 + 向前新建」。不改内容、不删文件、可回滚 |
 
 ### 底层能力（被上层调用）
 
@@ -135,7 +136,16 @@ bash install.sh --no-link   # 不注册到全局
 
 ### 指定你的知识库
 
-**最简单的方式**：用 `kg-vault` 管理（它会写好配置）
+**已经有一堆笔记？** 先用 `kg-init` 归一化（会先给你看计划再动手）：
+
+```bash
+cd kg-init && source ../.venv/bin/activate
+python scripts/analyze_notes.py ~/my-notes      # 1. 体检
+python scripts/migrate.py plan ~/my-notes       # 2. 看计划（只读）
+python scripts/migrate.py apply ~/my-notes --confirm   # 3. 确认后执行
+```
+
+**从零开始 / 已有标准结构**：用 `kg-vault` 管理（它会写好配置）
 
 ```bash
 cd kg-vault && source ../.venv/bin/activate
@@ -239,7 +249,7 @@ export KG_VAULT=~/my-vault
 | `kg-zhihu` | `base` + `wechat`；浏览器能力依赖 `kg-browser` |
 | `kg-doc` | `base` + `doc` |
 | `kg-browser` | 无 Python 依赖；需 `chrome-devtools-mcp` CLI |
-| `kg-vault` / `kg-ask` / `kg-lint` / `kg-review` / `kg-learn` / `kg-capture` | 无额外依赖（纯标准库） |
+| `kg-vault` / `kg-init` / `kg-ask` / `kg-lint` / `kg-review` / `kg-learn` / `kg-capture` | 无额外依赖（纯标准库） |
 
 ---
 
