@@ -76,11 +76,13 @@ python3 -c "from media_to_text import find_vault; print(find_vault())"
 **别急着写新页** —— 库里可能已经记过，或有该建双链的相关页：
 
 ```bash
-cd <库根>/skills/kg-ask && source ../.venv/bin/activate
+cd "$KG/kg-ask" && source "$KG/.venv/bin/activate"
 python scripts/search_vault.py "<关键词>" --scope wiki
 ```
 
-> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
+> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
+> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
 
 三种结果：
 - **已有相同主题的页** → 补充进那页，不要新建重复页

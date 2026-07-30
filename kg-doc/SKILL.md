@@ -20,10 +20,12 @@ description: 把本地文档（PDF / Word / PPT / Excel / txt / md）、整个�
 见 `../README.md`。本 skill 需要：`base` + `doc` + 底层库 editable 安装。
 
 ```bash
-cd kg-wiki-skills && source .venv/bin/activate && cd kg-doc
+cd "$KG/kg-doc" && source "$KG/.venv/bin/activate"
 ```
 
-> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
+> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
+> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
 
 ## 用法
 

@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# 用本仓库 .venv 里的 python 跑脚本 —— 不需要先激活 venv，也不需要知道仓库在哪。
+#
+# 为什么要有这个：
+#   skill 通常通过软链被发现（如 ~/.agents/skills/kg -> /path/to/kg-wiki-skills），
+#   目录名和仓库名不一致，AI 按文档 `cd kg-wiki-skills` 会失败并开始瞎猜。
+#   本脚本从自身位置反推仓库根，把这个问题彻底消掉。
+#
+# 用法（在任意目录、任意 skill 下）：
+#   <本脚本路径> <脚本.py> [参数...]
+#   kg-py kg-bilibili/scripts/list_videos.py toview
+#
+# 相对路径按仓库根解析，绝对路径原样使用。
+
+set -euo pipefail
+
+# 沿软链解析到真实位置（macOS 无 readlink -f，故手动走）
+resolve() {
+  local p="$1"
+  while [ -L "$p" ]; do
+    local t; t="$(readlink "$p")"
+    case "$t" in
+      /*) p="$t" ;;
+      *)  p="$(cd "$(dirname "$p")" && pwd)/$t" ;;
+    esac
+  done
+  printf '%s\n' "$p"
+}
+
+SELF="$(resolve "${BASH_SOURCE[0]}")"
+REPO="$(cd "$(dirname "$SELF")/.." && pwd)"
+
+if [ -x "$REPO/.venv/bin/python" ]; then
+  PY="$REPO/.venv/bin/python"
+elif [ -x "$REPO/.venv/Scripts/python.exe" ]; then
+  PY="$REPO/.venv/Scripts/python.exe"
+else
+  cat >&2 <<EOF
+[错误] 找不到虚拟环境: $REPO/.venv
+
+  还没装环境。让 AI 唤起 kg-install，或先自己体检：
+    python3 "$REPO/kg-install/scripts/doctor.py"
+EOF
+  exit 1
+fi
+
+if [ $# -eq 0 ]; then
+  echo "用法: $(basename "$0") <脚本.py> [参数...]" >&2
+  echo "  例: $(basename "$0") kg-ask/scripts/search_vault.py \"关键词\"" >&2
+  exit 2
+fi
+
+SCRIPT="$1"; shift
+case "$SCRIPT" in
+  /*) ;;                        # 绝对路径原样用
+  *)  SCRIPT="$REPO/$SCRIPT" ;; # 相对路径按仓库根解析
+esac
+
+if [ ! -f "$SCRIPT" ]; then
+  echo "[错误] 脚本不存在: $SCRIPT" >&2
+  exit 1
+fi
+
+# 多数脚本会相对自身定位资源，工作目录用脚本所在目录最安全
+cd "$(dirname "$SCRIPT")"
+exec "$PY" "$SCRIPT" "$@"

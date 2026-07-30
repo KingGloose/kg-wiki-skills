@@ -23,11 +23,13 @@ description: 学习模式：陪用户系统学习一个新领域。先查库确�
 ### 1. 查库：确认已知起点（别重复讲他已懂的）
 
 ```bash
-cd ../kg-ask && source ../.venv/bin/activate
+cd "$KG/kg-ask" && source "$KG/.venv/bin/activate"
 python scripts/search_vault.py "<主题>" 
 ```
 
-> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
+> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
+> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
 
 - **库里有沉淀** → 从那里接着往上搭，明确说"你在 `wiki/xxx` 记过 A，今天从 B 开始"
 - **只有 index 关键词** → 他知道这东西存在但没深入，正好补
@@ -116,7 +118,7 @@ python scripts/search_vault.py "<主题>"
 **不要自作主张创建。**
 
 ```bash
-cd kg-wiki-skills/kg-learn && source ../.venv/bin/activate
+cd "$KG/kg-learn" && source "$KG/.venv/bin/activate"
 
 # 创建（--why 很重要：记下"为了解决什么问题"，防止学着学着忘了目的）
 python scripts/plan.py new "Rust 所有权与借用" --domain Rust \

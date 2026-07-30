@@ -31,10 +31,12 @@ description: 小宇宙播客单集摄入：解析元信息和 shownotes（含时
 - 档2：额外 `asr-mac.txt`（Mac）或 `asr-linux.txt`（WSL）+ ffmpeg
 
 ```bash
-cd kg-wiki-skills && source .venv/bin/activate && cd kg-xiaoyuzhou
+cd "$KG/kg-xiaoyuzhou" && source "$KG/.venv/bin/activate"
 ```
 
-> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
+> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
+> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
 
 ## 用法
 

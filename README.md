@@ -220,7 +220,7 @@ export KG_VAULT=/path/to/your-vault
 
 ### 不需要放进知识库
 
-工具**不必**软链或复制到知识库目录里。安装脚本已把本仓库注册到 `~/.agents/skills/`，
+工具**不必**软链或复制到知识库目录里。注册到 `~/.agents/skills/` 即可，
 AI 在任何工作目录都能发现并调用；库的位置靠上面的解析机制确定。
 **知识库保持纯粹——只放知识。**
 
@@ -329,7 +329,16 @@ cd kg-lint   && python scripts/lint_vault.py
 ## 兼容性
 
 - 在 **Claude Code / pi** 等支持 Agent Skills（`SKILL.md` + frontmatter）的环境下开箱可用
-- skill 发现：把本仓库软链或复制到 `~/.agents/skills/`，含 `SKILL.md` 的目录会被递归发现
+- skill 发现：把本仓库软链到 `~/.agents/skills/`，含 `SKILL.md` 的目录会被递归发现
+
+  ```bash
+  ln -s "$(pwd)" ~/.agents/skills/kg-wiki-skills     # Claude Code 用 ~/.claude/skills/
+  ```
+
+  **软链名必须是 `kg-wiki-skills`** —— 各 skill 文档里用 `$KG` 指代仓库根，
+  假设的就是这个名字。名字不一致时 AI 会找不到仓库根（踩过：软链叫 `kg`，
+  AI 按文档 `cd kg-wiki-skills` 失败后开始瞎猜路径）。
+  `kg-install` 的 `doctor.py` 会检查这一点并给出改名命令。
 - 脚本本身是普通 Python CLI，也可脱离 Agent 直接调用
 
 ## 许可

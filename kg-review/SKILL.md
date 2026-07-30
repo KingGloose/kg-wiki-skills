@@ -19,10 +19,12 @@ Karpathy LLM Wiki 模式的隐含前提:**知识要被反复唤醒才有价值**
 无额外依赖（纯标准库）。
 
 ```bash
-cd kg-wiki-skills/kg-review && source ../.venv/bin/activate
+cd "$KG/kg-review" && source "$KG/.venv/bin/activate"
 ```
 
-> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
+> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
+> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
 
 ## 用法
 

@@ -235,6 +235,8 @@ def probe_registration() -> dict:
                     if child.is_symlink() and Path(os.readlink(child)).resolve() == REPO:
                         entry["linked"] = True
                         entry["link_name"] = child.name
+                        # 文档里的 $KG 假设软链名是 kg-wiki-skills
+                        entry["name_matches_docs"] = child.name == "kg-wiki-skills"
                         break
                 except OSError:
                     continue
@@ -293,6 +295,9 @@ def human_report(d: dict) -> str:
     for base, r in d["registration"].items():
         if r["linked"]:
             L.append(f"  ✅ {base}/{r.get('link_name')} → 本仓库")
+            if r.get("name_matches_docs") is False:
+                L.append(f"     ⚠️  软链名不是 kg-wiki-skills —— 各 skill 文档里的 $KG"
+                         f" 指向 kg-wiki-skills，名字不一致会让 AI 找不到仓库根")
             any_linked = True
     if not any_linked:
         L.append("  ○  未注册 —— AI 只能在本仓库目录内发现这些 skill")
@@ -359,6 +364,11 @@ def main() -> int:
     if plat.get("ram_gb") and plat["ram_gb"] < 8:
         data["notes"].append(
             f"内存仅 {plat['ram_gb']}GB —— large-v3 模型吃紧，建议改用 small/medium 模型。")
+    for base, r in data["registration"].items():
+        if r.get("linked") and r.get("name_matches_docs") is False:
+            data["notes"].append(
+                f"软链名是 '{r.get('link_name')}'，但文档里的 $KG 假设是 'kg-wiki-skills'。"
+                f"建议改名: ln -sfn {REPO} {base}/kg-wiki-skills && rm {base}/{r.get('link_name')}")
     if not data["vault"].get("resolved"):
         data["notes"].append(
             "知识库未配置。有旧笔记要改造走 kg-init；已有标准结构走 kg-vault add。")

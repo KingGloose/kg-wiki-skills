@@ -34,7 +34,7 @@ description: 知识库路径管理——只解决「库在哪」这一个问题�
 ## 用法
 
 ```bash
-cd kg-wiki-skills/kg-vault && source ../.venv/bin/activate
+cd "$KG/kg-vault" && source "$KG/.venv/bin/activate"
 
 python scripts/vault_cli.py which            # 当前会用哪个库（拿不准时先跑这个）
 python scripts/vault_cli.py list             # 列出已注册的库
@@ -46,7 +46,9 @@ python scripts/vault_cli.py use  <别名>                 # 切换默认库
 python scripts/vault_cli.py remove <别名>               # 移除注册（不删目录）
 ```
 
-> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
+> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
+> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
 
 ## 退出码（AI 可据此判断该不该问用户）
 

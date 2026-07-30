@@ -20,10 +20,12 @@ description: 读取用户 B 站「稍后再看」/收藏夹，也可按关键词
 本 skill 需要：`base` + `bilibili`（无字幕视频要转写则额外 `asr-mac`/`asr-linux` + 底层库 + ffmpeg）。
 
 ```bash
-cd kg-wiki-skills && source .venv/bin/activate && cd kg-bilibili
+cd "$KG/kg-bilibili" && source "$KG/.venv/bin/activate"
 ```
 
-> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
+> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
+> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
 
 ### 配置 cookie（跨平台通用，一次性）
 

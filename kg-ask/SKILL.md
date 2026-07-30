@@ -22,7 +22,7 @@ description: 库内检索与问答：给一个问题或关键词，检索 wiki �
 ## 用法
 
 ```bash
-cd kg-wiki-skills/kg-ask && source ../.venv/bin/activate
+cd "$KG/kg-ask" && source "$KG/.venv/bin/activate"
 
 python scripts/search_vault.py "泛域名 证书"           # 检索（自动建/更新索引）
 python scripts/search_vault.py "Agent 架构" --scope wiki  # 只搜沉淀页，不含旧笔记
@@ -32,7 +32,9 @@ python scripts/search_vault.py --stats                  # 看库构成
 python scripts/search_vault.py --rebuild                # 强制重建索引
 ```
 
-> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
+> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
+> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
 
 参数：`--limit`(返回几个文件,默认8) | `--snippets`(每文件几个片段) |
 `--min-score`(相关度门槛,默认8.0) | `--scope`(wiki/index/raw/archive)

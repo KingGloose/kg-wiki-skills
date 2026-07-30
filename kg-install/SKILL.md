@@ -43,10 +43,13 @@ GPU 直通也能用。但如果用户明确要原生 Windows，上表够你走�
 ## 第 1 步：体检
 
 ```bash
-cd kg-wiki-skills/kg-install
+cd <clone 下来的 kg-wiki-skills>/kg-install
 python3 scripts/doctor.py            # 人类可读
 python3 scripts/doctor.py --json     # 结构化（你优先用这个）
 ```
+
+> 装环境阶段还没注册全局软链，所以这里用 clone 路径。
+> 装完之后其他 skill 的文档里用 `$KG`（= `~/.agents/skills/kg-wiki-skills`）。
 
 注意用 `python3` 而不是 venv 里的 python —— **体检时 venv 可能还不存在**。
 脚本纯标准库，零依赖。
@@ -160,14 +163,18 @@ macOS / Linux / WSL2：
 
 ```bash
 mkdir -p ~/.agents/skills
-ln -s "$(pwd)" ~/.agents/skills/kg
+ln -s "$(pwd)" ~/.agents/skills/kg-wiki-skills
 ```
+
+**软链名必须是 `kg-wiki-skills`** —— 各 skill 文档里的 `$KG` 就指这个路径。
+名字不一致会让 AI 找不到仓库根（曾踩过：软链叫 `kg`，AI 按文档 `cd kg-wiki-skills`
+失败后开始瞎猜路径）。
 
 原生 Windows（PowerShell，**需管理员权限或开启开发者模式**）：
 
 ```powershell
 New-Item -ItemType Directory -Force "$HOME\.agents\skills"
-New-Item -ItemType SymbolicLink -Path "$HOME\.agents\skills\kg" -Target (Get-Location)
+New-Item -ItemType SymbolicLink -Path "$HOME\.agents\skills\kg-wiki-skills" -Target (Get-Location)
 ```
 
 > 建不了软链的话，直接复制目录也行（缺点：改代码要重新复制）。
