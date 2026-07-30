@@ -20,6 +20,24 @@ description: 底层能力：通过 chrome-devtools CLI 操作「用户可见的�
 **边界原则**：只读你自己已经能看到的页面。不注入 cookie、不伪造凭证、不绕权限。
 遇到登录页/403，让用户在可见 Chrome 里自己登录，而不是想办法绕过。
 
+## 平台支持（WSL 用户必读）
+
+| 平台 | 读历史/书签<br>`find-history.py` | 实时操作浏览器<br>`connect-chrome.sh` |
+|------|------|------|
+| macOS | ✅ 开箱可用 | ✅ 开箱可用 |
+| Linux | ✅ 找 `~/.config/google-chrome` 等 | ✅ 开箱可用 |
+| **WSL2** | ✅ **自动穿 `/mnt/c` 读 Windows 侧 Chrome** | ⚠️ 需额外配置 |
+| Windows 原生 | ✅ 走 `%LOCALAPPDATA%` | ✅ 开箱可用 |
+
+**WSL 的实时操作为什么麻烦**：Chrome 跑在 Windows 侧，脚本跑在 WSL 里，
+两者网络命名空间不同 —— `ws://127.0.0.1:<port>` 在 WSL 里指向 WSL 自己，
+连不到 Windows 的 Chrome。`connect-chrome.sh` 检测到 WSL 会打印三种做法
+（Windows 侧监听 `0.0.0.0` 走主机 IP / WSL 内装 Linux Chrome + WSLg /
+仓库放 Windows 侧跑），详见 `references/troubleshooting.md`。
+
+**但多数场景用不到实时操作** —— 只想找"之前看过的那篇文章"，
+`find-history.py` 直接读 SQLite 就够，**无需 debugging，WSL 下开箱可用**。
+
 ## 前置（一次性）
 
 1. 装 CLI：`npm i -g chrome-devtools-mcp@latest`
