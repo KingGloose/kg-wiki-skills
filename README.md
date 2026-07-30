@@ -44,10 +44,11 @@ AI 时代，个人笔记的价值变了。
 | `kg-zhihu` | 知乎专栏 / 回答 / 问题页（走真实浏览器，绕过 JS 挑战） |
 | `kg-doc` | 本地文档：PDF / Word / PPT / Excel / txt / md，支持文件夹批量与网页 URL |
 
-### 前置：知识库在哪、怎么来
+### 前置：装环境、知识库在哪
 
 | skill | 能力 |
 |-------|------|
+| `kg-install` | **装环境（对话式）**。先体检机器 → 问你要处理什么内容 → 只装真正需要的。比 `install.sh` 省几个 GB，装失败还能诊断 |
 | `kg-init` | **建库 / 改造现有笔记**。已有一堆散乱笔记？先体检 → 出改造计划并解释理由 → 用户确认后执行「整体归档 + 向前新建」。持有 `templates/`。不改内容、不删文件、可回滚 |
 | `kg-vault` | **路径管理**。`add` 注册 / `use` 切换默认 / `which` 查当前用哪个 / `doctor` 体检配置。只管"库在哪"，不建库 |
 
@@ -117,15 +118,40 @@ L2  多模态补充     仅对"文字丢了关键信息"的局部（关键帧、
 - **ffmpeg**（音视频转写需要）：macOS `brew install ffmpeg` / Ubuntu `sudo apt install ffmpeg`
 - Node.js（仅 `kg-browser` 需要）：`npm i -g chrome-devtools-mcp@latest`
 
-### 一键安装
+### 方式 A：让 AI 装（推荐）
 
 ```bash
 git clone https://github.com/KingGloose/kg-wiki-skills.git
 cd kg-wiki-skills
+```
+
+然后对你的 AI agent 说「帮我装一下」，它会唤起 `kg-install`：
+
+1. **体检**这台机器（平台/内存/GPU/已有工具）
+2. **问你要处理什么内容**（文章 / 视频 / 播客 / 文档 / 只写笔记）
+3. **只装你需要的那几样**
+
+为什么推荐这个：全套装下来 Docling 约 1GB + Whisper 模型约 1.5GB，
+但**大部分人用不到全部**。只想存公众号文章的话，15MB 就够了。
+而且视频/播客多数有现成字幕，可以完全跳过转写依赖。
+
+装失败时 AI 能读报错、判断原因（CUDA 版本？源太慢？平台不支持？）并给对策。
+
+想自己看环境状况：
+
+```bash
+python3 kg-install/scripts/doctor.py    # 纯标准库，无需先装任何东西
+```
+
+### 方式 B：一键脚本（快速通道）
+
+已知环境干净、想装全套时更快：
+
+```bash
 bash install.sh
 ```
 
-脚本会：探测平台（macOS / Linux / WSL2）→ 建 Python 3.12 venv →
+探测平台（macOS / Linux / WSL2）→ 建 Python 3.12 venv →
 **按平台自动选 ASR 后端**（macOS 用 mlx-whisper 走 Metal，Linux 用 faster-whisper 走 CUDA）→
 装底层库 → 软链注册到 `~/.agents/skills/kg` → 自检。幂等，可重复运行。
 
@@ -133,6 +159,8 @@ bash install.sh
 bash install.sh --minimal   # 跳过 Docling(~1GB) 和 Whisper 模型(~1.5GB)
 bash install.sh --no-link   # 不注册到全局
 ```
+
+> 脚本装全套，不问需求。想省空间用方式 A。
 
 ### 指定你的知识库
 
@@ -251,7 +279,7 @@ cd ../kg-vault && python scripts/vault_cli.py add ~/my-vault    # 再注册
 | `kg-zhihu` | `base` + `wechat`；浏览器能力依赖 `kg-browser` |
 | `kg-doc` | `base` + `doc` |
 | `kg-browser` | 无 Python 依赖；需 `chrome-devtools-mcp` CLI |
-| `kg-vault` / `kg-init` / `kg-ask` / `kg-lint` / `kg-review` / `kg-learn` / `kg-capture` | 无额外依赖（纯标准库） |
+| `kg-install` / `kg-vault` / `kg-init` / `kg-ask` / `kg-lint` / `kg-review` / `kg-learn` / `kg-capture` | 无额外依赖（纯标准库） |
 
 ---
 

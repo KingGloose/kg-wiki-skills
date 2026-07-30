@@ -35,7 +35,8 @@ python scripts/search_vault.py --rebuild                # 强制重建索引
 参数：`--limit`(返回几个文件,默认8) | `--snippets`(每文件几个片段) |
 `--min-score`(相关度门槛,默认8.0) | `--scope`(wiki/index/raw/archive)
 
-索引存 `.vault-index.json`，文件变更时自动重建（已被 gitignore）。
+索引存 `~/.cache/kg-wiki/index-<库路径哈希>.json` —— **按库隔离**，
+多库切换不会串。文件变更时自动重建。
 
 ## 分区权重（对应 AGENTS.md 三层）
 
@@ -83,7 +84,7 @@ python scripts/search_vault.py --rebuild                # 强制重建索引
 
 ## 已验证
 
-- 索引 262 个文件（wiki 17 / index 3 / raw 11 / archive 231），**构建 0.2 秒**。
+- 索引全库 md（wiki + index + raw + archive 共 260+ 文件），**构建 0.2 秒**。
 - 检索"泛域名 证书"：**63 毫秒**，3 个 wiki 页正确排在最前（相关度 53/47/36）。
 - 中文拆词有效："模块缓存单例" 正确命中 `wiki/前端/JS 模块系统与模块缓存单例.md`（相关度 216）。
 - archive 兜底："Docker 镜像" `--scope archive` 命中旧笔记 `archive/01 基础/03 Docker.md`。
