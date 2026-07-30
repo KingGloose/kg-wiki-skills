@@ -7,6 +7,8 @@ import argparse
 import json
 import shutil
 import sqlite3
+import os
+import platform
 import sys
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -15,9 +17,60 @@ from typing import Any
 
 
 CHROME_EPOCH = datetime(1601, 1, 1, tzinfo=timezone.utc)
-DEFAULT_CHROME_HOME = (
-    Path.home() / "Library" / "Application Support" / "Google" / "Chrome"
-)
+
+
+def _is_wsl() -> bool:
+    try:
+        return "microsoft" in Path("/proc/version").read_text().lower()
+    except OSError:
+        return False
+
+
+def _wsl_windows_chrome_homes() -> list[Path]:
+    """WSL 下 Chrome 装在 Windows 侧，得穿过 /mnt/c 去读。
+
+    /mnt/c/Users/<user>/AppData/Local/Google/Chrome/User Data
+    用户名未知（Linux 用户名常与 Windows 不同），所以遍历 Users 下所有目录。
+    """
+    found: list[Path] = []
+    users = Path("/mnt/c/Users")
+    if not users.is_dir():
+        return found
+    try:
+        for u in users.iterdir():
+            if not u.is_dir() or u.name in ("Public", "Default", "Default User", "All Users"):
+                continue
+            cand = u / "AppData/Local/Google/Chrome/User Data"
+            if cand.is_dir():
+                found.append(cand)
+    except OSError:
+        pass
+    return found
+
+
+def default_chrome_homes() -> list[Path]:
+    """按平台返回 Chrome 用户数据目录的候选列表（可能多个）。"""
+    system = platform.system()
+    if system == "Darwin":
+        return [Path.home() / "Library/Application Support/Google/Chrome"]
+    if system == "Windows":
+        local = os.environ.get("LOCALAPPDATA")
+        base = Path(local) if local else Path.home() / "AppData/Local"
+        return [base / "Google/Chrome/User Data"]
+    # Linux / WSL
+    homes = [
+        Path.home() / ".config/google-chrome",
+        Path.home() / ".config/chromium",
+        Path.home() / ".config/microsoft-edge",
+    ]
+    if _is_wsl():
+        # WSL 优先 Windows 侧——用户真正在用的浏览器在那边
+        homes = _wsl_windows_chrome_homes() + homes
+    return homes
+
+
+# 兼容旧引用
+DEFAULT_CHROME_HOME = default_chrome_homes()[0] if default_chrome_homes() else Path.home()
 
 
 def chrome_time_to_iso(value: int | None) -> str | None:
@@ -400,8 +453,9 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     )
     parser.add_argument(
         "--chrome-home",
-        default=str(DEFAULT_CHROME_HOME),
-        help="Chrome 用户数据根目录，默认读取 macOS Google Chrome 路径。",
+        default=None,
+        help="Chrome 用户数据根目录。不给则按平台自动探测"
+             "（macOS / Linux / Windows / WSL 会穿 /mnt/c 找 Windows 侧 Chrome）。",
     )
     parser.add_argument(
         "--limit",
@@ -444,12 +498,39 @@ def main(argv: list[str]) -> int:
         print("Error: keyword 不能为空", file=sys.stderr)
         return 2
 
-    chrome_home = Path(args.chrome_home).expanduser()
+    # 定位 Chrome 数据目录：显式给的优先，否则按平台探测（可能多个候选）
+    if args.chrome_home:
+        homes = [Path(args.chrome_home).expanduser()]
+    else:
+        homes = [h for h in default_chrome_homes() if h.is_dir()]
+        if not homes:
+            tried = default_chrome_homes()
+            print("Error: 找不到 Chrome 用户数据目录。已尝试:", file=sys.stderr)
+            for h in tried:
+                print(f"  - {h}", file=sys.stderr)
+            if _is_wsl():
+                print("\n  WSL 提示: Chrome 通常装在 Windows 侧，路径形如", file=sys.stderr)
+                print("  /mnt/c/Users/<你的Windows用户名>/AppData/Local/Google/Chrome/User Data",
+                      file=sys.stderr)
+                print("  确认 /mnt/c 已挂载（ls /mnt/c/Users），或用 --chrome-home 显式指定。",
+                      file=sys.stderr)
+            else:
+                print("\n  用 --chrome-home 显式指定路径。", file=sys.stderr)
+            return 2
+
     # 多拿一些再过滤，避免过滤后不够 limit 条
     raw_limit = max(args.limit, 1)
     if args.articles_only or args.days is not None:
         raw_limit = max(raw_limit * 4, 40)
-    candidates = find_candidates(chrome_home, keywords, raw_limit)
+
+    candidates = []
+    used_home = homes[0]
+    for h in homes:
+        got = find_candidates(h, keywords, raw_limit)
+        if got:
+            candidates, used_home = got, h
+            break
+    chrome_home = used_home
     candidates = filter_candidates(candidates, args.days, args.articles_only)[: max(args.limit, 1)]
     payload = {
         "query": " ".join(keywords) if len(keywords) > 1 else keywords[0],

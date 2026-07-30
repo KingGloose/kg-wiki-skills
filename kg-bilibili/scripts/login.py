@@ -8,6 +8,7 @@
 跨平台通用（Mac/WSL/Windows 终端都能显示二维码）。
 """
 import asyncio
+import os
 import sys
 import time
 from pathlib import Path
@@ -45,6 +46,15 @@ async def run():
     pic = qr.get_qrcode_picture()
     pic.to_file(str(qr_path))
     eprint(f"[qr] 二维码图片已保存: {qr_path}")
+    # WSL：文件在 Linux 侧，用 Windows 看图得走 \\wsl$ 路径，这里直接给出来
+    try:
+        if "microsoft" in Path("/proc/version").read_text().lower():
+            distro = os.environ.get("WSL_DISTRO_NAME", "Ubuntu")
+            eprint(f"[qr] WSL 提示：在 Windows 资源管理器打开 "
+                   f"\\\\wsl$\\{distro}{str(qr_path).replace('/', chr(92))}")
+            eprint("[qr]   或直接扫下方终端二维码（Windows Terminal 显示正常）")
+    except OSError:
+        pass
     print(qr.get_qrcode_terminal())
     eprint("[..] 请用手机 B 站 APP 扫描二维码并确认登录（限时约 3 分钟）")
 
