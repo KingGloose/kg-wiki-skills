@@ -27,6 +27,8 @@ cd ../kg-ask && source ../.venv/bin/activate
 python scripts/search_vault.py "<主题>" 
 ```
 
+> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+
 - **库里有沉淀** → 从那里接着往上搭，明确说"你在 `wiki/xxx` 记过 A，今天从 B 开始"
 - **只有 index 关键词** → 他知道这东西存在但没深入，正好补
 - **完全没有** → 从零开始，走「地图式」

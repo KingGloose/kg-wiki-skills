@@ -28,6 +28,8 @@ description: 抓取微信公众号单篇文章（mp.weixin.qq.com/s/...），转
 cd kg-wiki-skills && source .venv/bin/activate && cd kg-wechat
 ```
 
+> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+
 ## 脚本用法
 
 ```bash

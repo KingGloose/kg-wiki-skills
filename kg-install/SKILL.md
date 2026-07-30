@@ -1,20 +1,22 @@
 ---
 name: kg-install
-description: 装环境（对话式，按需裁剪）。先体检当前机器，再问用户要处理什么内容，只装他真正需要的那几样——而不是无脑装全套（文档解析约 1GB、Whisper 模型约 1.5GB）。装失败时能诊断具体原因并给出对策。当用户说「帮我装一下」「配置环境」「这些 skill 怎么用起来」「装到新电脑上」「xxx 报错说缺依赖」「ModuleNotFoundError」时使用。也用于事后排查「为什么这个 skill 跑不起来」。
+description: 装环境（对话式，按需裁剪，覆盖 macOS / Linux / WSL2 / 原生 Windows）。先体检当前机器，再问用户要处理什么内容，只装他真正需要的那几样——而不是无脑装全套（文档解析约 1GB、Whisper 模型约 1.5GB）。装失败时能诊断具体原因并给出对策。当用户说「帮我装一下」「配置环境」「这些 skill 怎么用起来」「装到新电脑上」「xxx 报错说缺依赖」「ModuleNotFoundError」时使用。也用于事后排查「为什么这个 skill 跑不起来」。
 ---
 
 # kg-install · 装环境
 
-`install.sh` 是"闭眼装全套"，适合已经走通的标准路径。
-**本 skill 是"问清楚再装"** —— 按机器实际情况和用户实际需求裁剪。
+**这是本仓库唯一的安装入口。** 没有一键脚本 —— 因为安装脚本要穷举
+「4 个平台 × 有无 GPU × 用户要装哪几样能力」的组合，分支爆炸且失败只能 `exit`。
 
-## 为什么要有这个（对话式安装的价值）
+你（AI）能读环境、读报错、判断原因、给对策。这是脚本做不到的，也是这里不用脚本的原因。
 
-脚本的死穴：**它不知道用户要干什么**，只能按平台猜，于是装全套。
-结果一个"只想存几篇公众号文章"的人，被装了 Docling（约 1GB）+ Whisper 模型（约 1.5GB）。
+## 为什么不用一键脚本
 
-而且脚本失败只能 `exit 1` 或跳过，用户拿到一个残缺环境却不知道缺什么。
-你（AI）能读报错、判断原因、给对策，这是脚本做不到的。
+- **脚本不知道用户要干什么**，只能按平台猜，于是装全套。
+  一个"只想存几篇公众号文章"的人，被装 Docling（约 1GB）+ Whisper 模型（约 1.5GB）。
+- **脚本失败只能 exit 或跳过**，用户拿到残缺环境却不知缺什么、怎么补。
+- **平台组合太多**：macOS(ARM/Intel) × Linux × WSL2 × 原生 Windows，
+  各自的包管理器、venv 激活方式、GPU 方案、ASR 后端都不同。
 
 ## 铁律
 
@@ -23,6 +25,20 @@ description: 装环境（对话式，按需裁剪）。先体检当前机器，�
 3. **装之前报备。** 要跑 `uv pip install` 或系统包管理器（brew/apt）前，
    先说要装什么、大概多大，让用户知情。
 4. **失败不硬扛。** 装不上就诊断原因、给替代方案，不要反复重试同一条命令。
+
+## 四个平台的差异（照这个给命令）
+
+| | macOS | Linux | WSL2 | 原生 Windows |
+|---|---|---|---|---|
+| 系统包管理器 | `brew` | `apt` | `apt` | `winget` / `scoop` |
+| venv 激活 | `source .venv/bin/activate` | 同左 | 同左 | PowerShell: `.venv\Scripts\Activate.ps1`<br>CMD: `.venv\Scripts\activate.bat` |
+| ASR 后端 | ARM: mlx-whisper(Metal)<br>Intel: faster-whisper(CPU) | faster-whisper | faster-whisper | faster-whisper |
+| GPU 加速 | Apple Metal（ARM 自带） | NVIDIA + CUDA12/cuDNN9 | 同左（走 WSL GPU 直通） | 同左（驱动装在 Windows 侧） |
+| ffmpeg | `brew install ffmpeg` | `sudo apt install -y ffmpeg` | 同左 | `winget install ffmpeg` |
+| 已知坑 | Intel Mac 无 GPU 加速，慢 | cuDNN 版本不符最常见 | GPU 直通需较新驱动 | Docling 偶有编译问题；<br>CUDA 配置比 WSL2 麻烦 |
+
+**原生 Windows 的建议**：能用 WSL2 就用 WSL2 —— 依赖生态更顺，
+GPU 直通也能用。但如果用户明确要原生 Windows，上表够你走通（除 mlx 之外都支持）。
 
 ## 第 1 步：体检
 
@@ -91,7 +107,14 @@ uv pip install -e ./kg-media-to-text     # 底层库，editable
 cd kg-wiki-skills
 uv python install 3.12          # 确保 3.12 可用
 uv venv --python 3.12
-source .venv/bin/activate       # Windows: .venv\Scripts\activate
+```
+
+激活（按平台选，体检报告的 `activate_cmd` 字段直接给了）：
+
+```bash
+source .venv/bin/activate              # macOS / Linux / WSL2
+.venv\Scripts\Activate.ps1             # Windows PowerShell
+.venv\Scripts\activate.bat             # Windows CMD
 ```
 
 ### 本地转写的选型（按体检结果定）
@@ -100,6 +123,7 @@ source .venv/bin/activate       # Windows: .venv\Scripts\activate
 |------|------|---------|------|
 | Apple Silicon | `asr-mac.txt`（mlx-whisper） | 1 小时音频约 2-4 分钟 | 走 Metal GPU |
 | Linux/WSL2 + NVIDIA | `asr-linux.txt`（faster-whisper） | 1 小时约 2-5 分钟 | **需 CUDA 12 + cuDNN 9** |
+| 原生 Windows + NVIDIA | `asr-linux.txt`（faster-whisper） | 1 小时约 2-5 分钟 | 驱动装 Windows 侧；<br>配 CUDA 比 WSL2 麻烦 |
 | Intel Mac / 无 GPU | `asr-linux.txt`（CPU 模式） | 1 小时约 20-40 分钟 | 慢但能用 |
 | 内存 < 8GB | 同上，但**换小模型** | —— | large-v3 吃紧，建议 small/medium |
 
@@ -132,10 +156,21 @@ sudo apt install -y ffmpeg   # Linux / WSL2
 
 不注册的话，AI 只能在本仓库目录内发现这些 skill。
 
+macOS / Linux / WSL2：
+
 ```bash
 mkdir -p ~/.agents/skills
 ln -s "$(pwd)" ~/.agents/skills/kg
 ```
+
+原生 Windows（PowerShell，**需管理员权限或开启开发者模式**）：
+
+```powershell
+New-Item -ItemType Directory -Force "$HOME\.agents\skills"
+New-Item -ItemType SymbolicLink -Path "$HOME\.agents\skills\kg" -Target (Get-Location)
+```
+
+> 建不了软链的话，直接复制目录也行（缺点：改代码要重新复制）。
 
 Claude Code 用 `~/.claude/skills/`。**建软链前先看目标是否已存在**，别覆盖别人的东西。
 
@@ -161,19 +196,10 @@ cd /tmp && pi --print "列出名字以 kg- 开头的 skill"   # 全局能发现�
 | `找不到知识库` | 没配置库位置 | 走第 4 步 |
 | skill 在别的目录唤不起来 | 没注册全局 | 走第 5 步 |
 | 装依赖时网络超时 | 源慢 | 换国内镜像：`uv pip install -i https://pypi.tuna.tsinghua.edu.cn/simple ...` |
-
-## 与 install.sh 的分工
-
-```
-install.sh          闭眼装全套，走通的标准路径，一条命令，幂等
-                    → 适合：自己迁移新机器、CI、已知环境干净
-
-kg-install（本 skill）  问清楚再装，按需裁剪，能诊断
-                    → 适合：新用户首次装、环境不标准、脚本挂了、
-                            只想装一部分、事后排查跑不起来
-```
-
-两者不冲突。脚本装完也可以用本 skill 的 `doctor.py` 体检。
+| Windows 上 `无法加载文件 Activate.ps1` | PowerShell 执行策略 | `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`，或改用 CMD 的 `.bat` |
+| Windows 上建软链失败 | 权限不足 | 用管理员 PowerShell，或开启「开发者模式」，或直接复制目录 |
+| Windows 上 Docling 装不上 | 依赖需编译 | 装 VS Build Tools，或改用 WSL2，或先跳过文档能力 |
+| 中文路径/文件名报错 | 编码问题 | 确认终端用 UTF-8（`chcp 65001`）；脚本内部读写已统一 utf-8 |
 
 ## 边界
 
@@ -182,6 +208,8 @@ kg-install（本 skill）  问清楚再装，按需裁剪，能诊断
 - 不碰用户已有的 Python 环境，一切装在本仓库的 `.venv` 里。
 - 不自动建软链覆盖已存在的路径。
 - 云端 ASR 暂未支持（当前只有本地 Whisper）。
+- **纯 Windows 的 mlx-whisper 不可用**（mlx 只支持 Apple Silicon），会自动落到 faster-whisper。
+- 本仓库**没有一键安装脚本**，安装靠你按本文档判断。
 
 ## 已验证
 
@@ -194,3 +222,6 @@ kg-install（本 skill）  问清楚再装，按需裁剪，能诊断
   正确识别 venv 未创建、未注册全局。
 - `--json` 输出结构完整（platform/gpu/tools/venv.capabilities/vault/registration/
   blockers/notes），可直接被 AI 解析用于决策。
+- 模拟 Windows 平台（mock platform.system）：正确识别为 supported、
+  包管理器给 winget、激活命令给 `.venv\Scripts\Activate.ps1`、
+  ffmpeg 装法给 winget、并追加两条 Windows 专属提示（ASR 后端 / Docling 编译）。

@@ -46,6 +46,8 @@ python scripts/vault_cli.py use  <别名>                 # 切换默认库
 python scripts/vault_cli.py remove <别名>               # 移除注册（不删目录）
 ```
 
+> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+
 ## 退出码（AI 可据此判断该不该问用户）
 
 | 码 | 含义 | AI 该做什么 |

@@ -28,6 +28,8 @@ cd kg-wiki-skills/kg-init && source ../.venv/bin/activate
 python scripts/analyze_notes.py <笔记目录>
 ```
 
+> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+
 输出：笔记/文档/图片的数量与体积、领域分布、最大的笔记、非 md 文档清单、
 未被引用的图片、现有双链数量、已有的 LLM Wiki 结构。
 

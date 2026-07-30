@@ -23,6 +23,8 @@ description: 把本地文档（PDF / Word / PPT / Excel / txt / md）、整个�
 cd kg-wiki-skills && source .venv/bin/activate && cd kg-doc
 ```
 
+> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+
 ## 用法
 
 ```bash

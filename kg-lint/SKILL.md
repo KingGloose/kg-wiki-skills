@@ -22,6 +22,8 @@ description: 知识库健康检查（体检）：找出孤儿页、死链、raw 
 cd kg-wiki-skills && source .venv/bin/activate && cd kg-lint
 ```
 
+> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+
 ## 用法
 
 ```bash

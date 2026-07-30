@@ -32,6 +32,8 @@ python scripts/search_vault.py --stats                  # 看库构成
 python scripts/search_vault.py --rebuild                # 强制重建索引
 ```
 
+> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+
 参数：`--limit`(返回几个文件,默认8) | `--snippets`(每文件几个片段) |
 `--min-score`(相关度门槛,默认8.0) | `--scope`(wiki/index/raw/archive)
 

@@ -23,6 +23,8 @@ description: 读取用户 B 站「稍后再看」/收藏夹，也可按关键词
 cd kg-wiki-skills && source .venv/bin/activate && cd kg-bilibili
 ```
 
+> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+
 ### 配置 cookie（跨平台通用，一次性）
 
 个人数据(稍后再看/收藏)和字幕都需要 B 站登录态。有两种方式，任选其一：

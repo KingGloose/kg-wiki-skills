@@ -25,7 +25,7 @@ import json
 import re
 import sys
 import time
-from pathlib import Path
+from pathlib import Path, PurePath
 
 # ---------- 库根解析（内联，保持本脚本零依赖） ----------
 def _looks_like_vault(p: Path) -> bool:
@@ -125,7 +125,8 @@ def eprint(*a, **k):
 
 
 def scope_of(rel: str) -> str:
-    head = rel.split("/", 1)[0]
+    # 用 PurePath 拆而不是 split("/")：Windows 上相对路径是 wiki\AI\x.md
+    head = PurePath(rel).parts[0] if rel else ""
     if head in ("wiki", "raw", "archive"):
         return head
     if rel in ("index.md", "log.md", "AGENTS.md", "README.md"):

@@ -46,18 +46,27 @@ def probe_platform() -> dict:
     elif system == "Linux":
         label = "Linux"
         pkg_mgr = "apt"
+    elif system == "Windows":
+        label = "Windows（原生）"
+        pkg_mgr = "winget"
     else:
         label = f"{system}（未适配）"
         pkg_mgr = None
 
+    if system == "Windows":
+        activate = r".venv\Scripts\Activate.ps1  (PowerShell) / .venv\Scripts\activate.bat  (CMD)"
+    else:
+        activate = "source .venv/bin/activate"
+
     info = {
+        "activate_cmd": activate,
         "system": system,
         "machine": machine,
         "label": label,
         "is_wsl": is_wsl,
         "apple_silicon": apple_silicon,
         "pkg_manager": pkg_mgr,
-        "supported": system in ("Darwin", "Linux"),
+        "supported": system in ("Darwin", "Linux", "Windows"),
     }
 
     # 内存与核数——决定本地 ASR 跑不跑得动
@@ -85,6 +94,11 @@ def probe_gpu(plat: dict) -> dict:
                 "note": "Apple Silicon 统一内存 + Metal，mlx-whisper 可用 GPU 加速"}
 
     nvidia_smi = shutil.which("nvidia-smi")
+    if not nvidia_smi and platform.system() == "Windows":
+        # Windows 上 nvidia-smi 常不在 PATH，试默认安装位置
+        fallback = Path(r"C:\Windows\System32\nvidia-smi.exe")
+        if fallback.is_file():
+            nvidia_smi = str(fallback)
     if not nvidia_smi:
         return {"kind": "none", "usable_for_asr": False,
                 "note": "未检测到 NVIDIA GPU，本地 ASR 只能跑 CPU（慢，约实时的 1-3 倍耗时）"}
@@ -228,6 +242,14 @@ def probe_registration() -> dict:
     return result
 
 
+def _ffmpeg_hint(plat: dict) -> str:
+    """各平台装 ffmpeg 的方式。"""
+    return {
+        "Darwin": "brew install ffmpeg",
+        "Windows": "winget install ffmpeg  (或 scoop install ffmpeg)",
+    }.get(plat["system"], "sudo apt install -y ffmpeg")
+
+
 # ---------- 报告 ----------
 
 def human_report(d: dict) -> str:
@@ -251,6 +273,7 @@ def human_report(d: dict) -> str:
 
     v = d["venv"]
     L.append(f"\n## Python 环境  {'✅ ' + v.get('python_version', '') if v['python_ok'] else '❌ 未创建'}")
+    L.append(f"  激活: {p['activate_cmd']}")
     if v.get("capabilities"):
         for cap, s in v["capabilities"].items():
             L.append(f"  {'✅' if s['ready'] else '○ '} {cap}"
@@ -309,7 +332,7 @@ def main() -> int:
 
     if not plat["supported"]:
         data["blockers"].append(
-            f"{plat['system']} 未适配。纯 Windows 请用 WSL2。")
+            f"{plat['system']} 未适配（支持 macOS / Linux / WSL2 / Windows）。")
     if not data["tools"]["uv"]["found"]:
         data["blockers"].append(
             "uv 未安装（必需）。装法: curl -LsSf https://astral.sh/uv/install.sh | sh，"
@@ -317,8 +340,15 @@ def main() -> int:
 
     if not data["tools"]["ffmpeg"]["found"]:
         data["notes"].append(
-            f"ffmpeg 未装 —— 只有音视频转写需要它。要装: "
-            f"{'brew install ffmpeg' if plat['system'] == 'Darwin' else 'sudo apt install -y ffmpeg'}")
+            f"ffmpeg 未装 —— 只有音视频转写需要它。要装: {_ffmpeg_hint(plat)}")
+    if plat["system"] == "Windows":
+        data["notes"].append(
+            "原生 Windows：本地 ASR 用 faster-whisper（mlx 仅 Apple Silicon）。"
+            "有 NVIDIA 卡需 CUDA 12 + cuDNN 9，否则降级 CPU。"
+            "**若遇到 CUDA/cuDNN 配置困难，WSL2 通常更省事**。")
+        data["notes"].append(
+            "原生 Windows 上 Docling（文档解析）偶有依赖编译问题；"
+            "若装不上可改用 WSL2，或先跳过文档能力。")
     if plat["system"] == "Darwin" and not plat["apple_silicon"]:
         data["notes"].append(
             "Intel Mac 无 Metal 加速，本地转写只能跑 CPU（1 小时音频约 20-40 分钟）。"

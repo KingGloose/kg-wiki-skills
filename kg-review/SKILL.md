@@ -22,6 +22,8 @@ Karpathy LLM Wiki 模式的隐含前提:**知识要被反复唤醒才有价值**
 cd kg-wiki-skills/kg-review && source ../.venv/bin/activate
 ```
 
+> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+
 ## 用法
 
 ```bash

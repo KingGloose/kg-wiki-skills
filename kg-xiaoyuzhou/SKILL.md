@@ -34,6 +34,8 @@ description: 小宇宙播客单集摄入：解析元信息和 shownotes（含时
 cd kg-wiki-skills && source .venv/bin/activate && cd kg-xiaoyuzhou
 ```
 
+> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+
 ## 用法
 
 ```bash

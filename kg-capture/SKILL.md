@@ -80,6 +80,8 @@ cd <库根>/skills/kg-ask && source ../.venv/bin/activate
 python scripts/search_vault.py "<关键词>" --scope wiki
 ```
 
+> Windows PowerShell 用 `.venv\Scripts\Activate.ps1`，CMD 用 `.venv\Scripts\activate.bat`。
+
 三种结果：
 - **已有相同主题的页** → 补充进那页，不要新建重复页
 - **有相关但不同主题的页** → 新建页 + **和它建双链**
