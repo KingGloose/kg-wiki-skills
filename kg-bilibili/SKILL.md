@@ -20,12 +20,15 @@ description: 读取用户 B 站「稍后再看」/收藏夹，也可按关键词
 本 skill 需要：`base` + `bilibili`（无字幕视频要转写则额外 `asr-mac`/`asr-linux` + 底层库 + ffmpeg）。
 
 ```bash
-cd "$KG/kg-bilibili" && source "$KG/.venv/bin/activate"
+# 路径相对本 SKILL.md 所在目录（AI 会自动解析成绝对路径）
+source ../.venv/bin/activate
 ```
 
-> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
-> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
-> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
+> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
+> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
+>
+> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
+> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
 
 ### 配置 cookie（跨平台通用，一次性）
 
@@ -56,7 +59,7 @@ cp .env.example .env    # Windows: copy .env.example .env
 
 ## 脚本用法
 
-所有命令先 `source .venv/bin/activate`（Windows 用对应激活方式）。脚本 stdout 是纯 JSON/文本，进度打在 stderr。
+所有命令先激活环境（见上方「环境」一节）。脚本 stdout 是纯 JSON/文本，进度打在 stderr。
 
 ```bash
 # 扫码登录（首次/换机器/cookie 过期时）

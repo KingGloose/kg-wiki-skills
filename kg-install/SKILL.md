@@ -49,7 +49,8 @@ python3 scripts/doctor.py --json     # 结构化（你优先用这个）
 ```
 
 > 装环境阶段还没注册全局软链，所以这里用 clone 路径。
-> 装完之后其他 skill 的文档里用 `$KG`（= `~/.agents/skills/kg-wiki-skills`）。
+> 其他 skill 的文档用**相对 SKILL.md 的路径**（`../.venv/bin/activate`），
+> 不依赖软链名 —— 你（AI）按已知规则把相对路径解析成绝对路径即可。
 
 注意用 `python3` 而不是 venv 里的 python —— **体检时 venv 可能还不存在**。
 脚本纯标准库，零依赖。
@@ -107,7 +108,7 @@ uv pip install -e ./kg-media-to-text     # 底层库，editable
 ### 环境创建（venv 不存在时）
 
 ```bash
-cd kg-wiki-skills
+cd <clone 下来的仓库根>          # 首次安装时用户就在这里，没有软链可依赖
 uv python install 3.12          # 确保 3.12 可用
 uv venv --python 3.12
 ```
@@ -166,9 +167,12 @@ mkdir -p ~/.agents/skills
 ln -s "$(pwd)" ~/.agents/skills/kg-wiki-skills
 ```
 
-**软链名必须是 `kg-wiki-skills`** —— 各 skill 文档里的 `$KG` 就指这个路径。
-名字不一致会让 AI 找不到仓库根（曾踩过：软链叫 `kg`，AI 按文档 `cd kg-wiki-skills`
-失败后开始瞎猜路径）。
+**软链名建议用 `kg-wiki-skills`**（与仓库同名，最少困惑）。
+各 skill 文档已改用相对路径，所以名字不一致也能工作 —— 但保持一致省心。
+
+> 踩过的坑：软链曾叫 `kg`，而文档写死 `cd kg-wiki-skills`，
+> AI 照抄失败后误诊成"环境没装"，准备重装一遍。
+> 教训是**文档不该写死依赖外部命名的路径** —— 现已全部改为相对路径。
 
 原生 Windows（PowerShell，**需管理员权限或开启开发者模式**）：
 
@@ -180,6 +184,22 @@ New-Item -ItemType SymbolicLink -Path "$HOME\.agents\skills\kg-wiki-skills" -Tar
 > 建不了软链的话，直接复制目录也行（缺点：改代码要重新复制）。
 
 Claude Code 用 `~/.claude/skills/`。**建软链前先看目标是否已存在**，别覆盖别人的东西。
+
+## 文档自检（维护者用）
+
+改过任何 SKILL.md 后跑一下，防止写出 AI 解析不了的路径：
+
+```bash
+python3 scripts/lint_docs.py          # 退出码 0=干净，1=有错
+```
+
+查四类问题：写死仓库名（`cd kg-wiki-skills`）、未定义变量（`$KG`）、
+写死用户目录（`/Users/xxx/`）、依赖软链名（`~/.agents/skills/kg/`）。
+
+**为什么要有这个**：曾经文档写死 `cd kg-wiki-skills`，
+但软链叫 `kg`、AI 的工作目录又是用户项目，于是 cd 失败，
+AI 误诊成"环境没装"准备重装。规范做法是用相对 SKILL.md 的路径，
+AI 按已知规则解析成绝对路径 —— 不依赖任何外部命名。
 
 ## 第 6 步：验证
 

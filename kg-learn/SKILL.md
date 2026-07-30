@@ -23,13 +23,15 @@ description: 学习模式：陪用户系统学习一个新领域。先查库确�
 ### 1. 查库：确认已知起点（别重复讲他已懂的）
 
 ```bash
-cd "$KG/kg-ask" && source "$KG/.venv/bin/activate"
+cd ../kg-ask && source ../.venv/bin/activate
 python scripts/search_vault.py "<主题>" 
 ```
 
-> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
-> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
-> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
+> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
+> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
+>
+> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
+> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
 
 - **库里有沉淀** → 从那里接着往上搭，明确说"你在 `wiki/xxx` 记过 A，今天从 B 开始"
 - **只有 index 关键词** → 他知道这东西存在但没深入，正好补
@@ -118,7 +120,7 @@ python scripts/search_vault.py "<主题>"
 **不要自作主张创建。**
 
 ```bash
-cd "$KG/kg-learn" && source "$KG/.venv/bin/activate"
+source ../.venv/bin/activate
 
 # 创建（--why 很重要：记下"为了解决什么问题"，防止学着学着忘了目的）
 python scripts/plan.py new "Rust 所有权与借用" --domain Rust \

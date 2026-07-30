@@ -26,12 +26,15 @@ B站很多视频没有 CC/AI 字幕，得走 ASR。
 - ASR 兜底：额外需要 ffmpeg
 
 ```bash
-cd "$KG/kg-youtube" && source "$KG/.venv/bin/activate"
+# 路径相对本 SKILL.md 所在目录（AI 会自动解析成绝对路径）
+source ../.venv/bin/activate
 ```
 
-> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
-> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
-> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
+> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
+> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
+>
+> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
+> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
 
 ## 用法
 

@@ -32,12 +32,14 @@ description: 知乎内容摄入：读取专栏文章、回答、问题页多回�
 ### 第 1 步：连接浏览器（每次会话首次）
 
 ```bash
-cd "$KG/kg-browser" && bash scripts/connect-chrome.sh
+cd ../kg-browser && bash scripts/connect-chrome.sh
 ```
 
-> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
-> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
-> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
+> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
+> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
+>
+> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
+> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
 
 连接脚本成功前不要跑任何页面命令（否则会操作到没有登录态的隔离浏览器）。
 

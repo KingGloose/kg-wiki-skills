@@ -24,13 +24,15 @@ description: 把现有笔记归一化成 LLM Wiki 结构。用户的笔记形态
 ### 第 1 步：体检（只读）
 
 ```bash
-cd "$KG/kg-init" && source "$KG/.venv/bin/activate"
+source ../.venv/bin/activate
 python scripts/analyze_notes.py <笔记目录>
 ```
 
-> `$KG` = 本仓库根目录。全局注册过的话就是 `~/.agents/skills/kg-wiki-skills`
-> （Claude Code：`~/.claude/skills/kg-wiki-skills`）；否则用 clone 下来的路径。
-> Windows PowerShell 把 `source $KG/.venv/bin/activate` 换成 `$KG\.venv\Scripts\Activate.ps1`。
+> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
+> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
+>
+> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
+> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
 
 输出：笔记/文档/图片的数量与体积、领域分布、最大的笔记、非 md 文档清单、
 未被引用的图片、现有双链数量、已有的 LLM Wiki 结构。
