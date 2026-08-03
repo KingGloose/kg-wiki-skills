@@ -1,6 +1,6 @@
 ---
 name: kg-capture
-description: 跨项目知识捕获：在任意项目里写代码、排查问题、探索技术、做技术决策时，识别出「值得沉淀」的内容，询问用户后回填到 LLM Wiki 知识库。当在其他目录解决了非显而易见的问题（踩坑+解法）、做了有上下文的技术决策、发现某库/工具的非文档化行为或边界条件、或用户说「这个记一下」「存到知识库」「值得沉淀吗」时使用。库根通过 KG_VAULT 环境变量 / ~/.config/kg-wiki/config.json / 向上查找自动解析，因此在任何工作目录都能正确写回。
+description: 跨项目知识捕获：在任意项目里写代码、排查问题、探索技术、做技术决策或与 Agent 对话时，识别出「值得沉淀」的结论，询问用户后回填到 LLM Wiki 知识库。当解决了非显而易见的问题（踩坑+解法）、做了有上下文的技术决策、发现某库/工具的非文档化行为或边界条件、或用户说「这个记一下」「把刚才的结论存到知识库」「值得沉淀吗」时使用。不负责无差别保存整段聊天记录。
 ---
 
 # kg-capture · 跨项目知识捕获
@@ -19,17 +19,21 @@ description: 跨项目知识捕获：在任意项目里写代码、排查问题�
 
 ## 定位库根（关键，不能出错）
 
-库根按以下优先级解析（**不要 hardcode 绝对路径**）：
+统一调用 `media_to_text.vault` 解析（**不要 hardcode 绝对路径**）：
 
-1. 环境变量 `KG_VAULT`
-2. 配置文件 `~/.config/kg-wiki/config.json` 的 `vault` 字段
-3. 从当前工作目录向上查找（含 `AGENTS.md` + `wiki/` 的目录）
+1. 用户本次明确指定的路径
+2. 环境变量 `KG_VAULT`
+3. `~/.config/kg-wiki/config.json`
+4. 从当前工作目录向上查找（含 `AGENTS.md` + `wiki/` 的目录）
 
 用脚本确认：
 
 ```bash
-python3 -c "from media_to_text import find_vault; print(find_vault())"
+../bin/kg-py kg-vault/scripts/vault_cli.py which
 ```
+
+只配置了一个有效库时直接使用；多个库已有默认时使用默认；多个库没有默认时必须询问用户，
+本次明确选择库，或通过 `kg-vault use <别名>` 保存长期选择。
 
 或直接用其他 skill 的脚本（它们都会解析库根并打印）。
 **动手前先确认库根下有 `AGENTS.md` 和 `wiki/`。**
@@ -76,8 +80,7 @@ python3 -c "from media_to_text import find_vault; print(find_vault())"
 **别急着写新页** —— 库里可能已经记过，或有该建双链的相关页：
 
 ```bash
-cd ../kg-ask && source ../.venv/bin/activate
-python scripts/search_vault.py "<关键词>" --scope wiki
+../bin/kg-py kg-ask/scripts/search_vault.py "<关键词>" --scope wiki
 ```
 
 > **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
@@ -129,7 +132,7 @@ python scripts/search_vault.py "<关键词>" --scope wiki
 ### 第 6 步：建双链 + 体检
 
 ```bash
-cd <库根>/skills/kg-lint && python scripts/lint_vault.py
+../bin/kg-py kg-lint/scripts/lint_vault.py --vault <库根>
 ```
 
 确认新页不是孤儿页、没有死链、index 有唤醒条目。

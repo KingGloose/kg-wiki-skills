@@ -26,7 +26,7 @@ description: 知识库路径管理——只解决「库在哪」这一个问题�
 
 - **任何 kg-* skill 报「找不到知识库」时** ← 最主要的触发场景
 - 「我的知识库在 /path/to/xxx」→ `add`
-- 「帮我新建一个知识库」→ `init`
+- 「帮我新建一个知识库」→ 转交 `kg-init`
 - 「切到工作那个库」→ `use`
 - 「有哪些库」→ `list`
 - 配置好像不对 → `doctor`
@@ -41,10 +41,11 @@ python scripts/vault_cli.py list             # 列出已注册的库
 python scripts/vault_cli.py doctor           # 检查配置与各库健康
 
 python scripts/vault_cli.py add  <路径> [--name 别名]   # 注册知识库
-python scripts/vault_cli.py init <路径>                 # 已弃用：会引导你去 kg-init
 python scripts/vault_cli.py use  <别名>                 # 切换默认库
 python scripts/vault_cli.py remove <别名>               # 移除注册（不删目录）
 ```
+
+`init` 子命令仅为旧调用保留，会引导去 `kg-init`，不要在新流程中使用。
 
 > **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
 > `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
@@ -99,13 +100,14 @@ python scripts/vault_cli.py remove <别名>               # 移除注册（不�
 
 ```
 其他 kg-* skill 需要读写库
-  → 自己按四级解析：--vault 参数 → KG_VAULT → 本配置 → 向上查找
+  → 统一调用 media_to_text.vault：--vault → KG_VAULT → 本配置 → 向上查找
   → 解析失败 → 报错并提示调用本 skill
   → AI 用 kg-vault 问清楚 / 注册 / 切换
   → 重试原操作
 ```
 
-所有 skill 都支持 `--vault <路径>` 做单次覆盖，**不必**先改配置。
+直接定位知识库的 CLI 都支持 `--vault <路径>` 做单次覆盖；由 AI 手动沉淀内容的
+skill 先运行 `which` 确认路径，**不必**先改配置。
 
 ## 边界
 

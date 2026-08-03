@@ -32,7 +32,7 @@ description: 知乎内容摄入：读取专栏文章、回答、问题页多回�
 ### 第 1 步：连接浏览器（每次会话首次）
 
 ```bash
-cd ../kg-browser && bash scripts/connect-chrome.sh
+bash ../kg-browser/scripts/connect-chrome.sh
 ```
 
 > **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
@@ -48,7 +48,7 @@ cd ../kg-browser && bash scripts/connect-chrome.sh
 先从本地 Chrome 历史/书签找：
 
 ```bash
-cd ../kg-browser && python3 scripts/find-history.py --keywords 知乎 <主题词> --articles-only
+python3 ../kg-browser/scripts/find-history.py --keywords 知乎 <主题词> --articles-only
 ```
 
 AI 应主动扩展同义词提高命中（如用户说"讲知识库那篇"→ `知识库 wiki 笔记 knowledge`）。

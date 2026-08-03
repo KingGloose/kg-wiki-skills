@@ -4,10 +4,11 @@
 都能正确找到用户的知识库。这是 skills 独立开源的前提。
 
 解析优先级（前面命中就不再往下找）：
-  1. 环境变量 KG_VAULT
-  2. 配置文件 ~/.config/kg-wiki/config.json 里的 "vault"
-  3. 从当前工作目录向上找（适合在库里执行命令时）
-  4. 从本文件位置向上找（适合 skills 住在库内的传统布局）
+  1. 命令行显式传入的 --vault
+  2. 环境变量 KG_VAULT
+  3. 配置文件 ~/.config/kg-wiki/config.json
+  4. 从当前工作目录向上找（适合在库里执行命令时）
+  5. 从本文件位置向上找（适合 skills 住在库内的传统布局）
 
 "是知识库"的判据：目录下同时有 AGENTS.md 和 wiki/（index.md 可选，新库可能还没建）。
 """
@@ -67,15 +68,34 @@ def _from_config() -> Path | None:
     # 多库格式
     vaults = data.get("vaults")
     if isinstance(vaults, dict) and vaults:
-        name = data.get("default") or next(iter(vaults))
-        v = vaults.get(name)
-        if v:
+        name = data.get("default")
+        if name:
+            v = vaults.get(name)
+            if not v:
+                raise VaultNotFoundError(f"配置的默认库 '{name}' 不存在。")
             p = Path(v).expanduser().resolve()
             if looks_like_vault(p):
                 return p
             raise VaultNotFoundError(
                 f"配置里的库 '{name}' 指向 {p}，但那里不像知识库。"
             )
+
+        valid = []
+        for key, value in vaults.items():
+            p = Path(value).expanduser().resolve()
+            if looks_like_vault(p):
+                valid.append((key, p))
+        if len(valid) == 1:
+            return valid[0][1]
+        if len(valid) > 1:
+            raise VaultNotFoundError(
+                "配置里有多个知识库但未指定默认：\n"
+                + "\n".join(f"  · {k}: {p}" for k, p in valid)
+                + "\n\n【给 AI 的指示】问用户这次要使用哪个库，然后："
+                "\n  临时：加 --vault <路径>"
+                "\n  长期：kg-vault/scripts/vault_cli.py use <别名>"
+            )
+        raise VaultNotFoundError("配置里的知识库路径都已失效，请询问用户新的路径。")
 
     # 单库格式
     v = data.get("vault")
@@ -164,14 +184,12 @@ def find_vault(hint: str | Path | None = None,
         "找不到知识库 —— 不知道该把内容写到哪里。\n"
         f"{hint_lines}\n"
         "\n【给 AI 的指示】不要猜测路径，直接问用户：「你的知识库在哪个目录？」\n"
-        "拿到路径后用下面任一方式固化（推荐第 2 种，一次配置长期有效）：\n"
+        "拿到路径后用下面任一方式继续：\n"
         "  1. 本次临时：   加 --vault /path/to/vault 参数\n"
-        "  2. 长期配置：   python -c \"from media_to_text import save_config; "
-        "save_config('/path/to/vault')\"\n"
-        f"                 （写入 {CONFIG_PATH}）\n"
+        "  2. 长期注册：   python kg-vault/scripts/vault_cli.py add /path/to/vault\n"
         "  3. 环境变量：   export KG_VAULT=/path/to/vault\n"
         "\n知识库需包含 AGENTS.md 和 wiki/ 目录。"
-        "\n没有现成的库？用 kg-vault 新建：vault_cli.py init <路径>"
+        "\n没有现成的库？先用 kg-init 建库，再用 kg-vault 注册路径。"
     )
 
 

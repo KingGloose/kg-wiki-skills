@@ -24,6 +24,8 @@ import json
 import sys
 from pathlib import Path
 
+from media_to_text import find_vault, VaultNotFoundError
+
 CONFIG_PATH = Path.home() / ".config" / "kg-wiki" / "config.json"
 # 判断"是否知识库"用的标记（只读检查，不负责创建——创建归 kg-init）
 VAULT_DIRS = ("wiki", "raw", "assets")
@@ -79,53 +81,18 @@ def all_vaults() -> tuple[dict[str, str], str | None]:
 
 
 def cmd_which(args) -> int:
-    vaults, default = all_vaults()
-    valid = {k: v for k, v in vaults.items() if looks_like_vault(Path(v))}
-    invalid = {k: v for k, v in vaults.items() if k not in valid}
-
-    if not vaults:
-        print("未注册任何知识库。")
-        print("\n【给 AI 的指示】问用户「你的知识库在哪个目录？」")
-        print("  · 已有库 → python vault_cli.py add <路径>")
-        print("  · 没有库 → python vault_cli.py init <路径>（从模板创建）")
-        return EXIT_ASK_USER
-
-    if not valid:
-        print("已注册的库路径都无效（可能已移动或删除）：")
-        for k, v in invalid.items():
-            print(f"  ✗ {k}: {v}")
-        print("\n【给 AI 的指示】问用户新路径，然后 add / remove 修正。")
-        return EXIT_ASK_USER
-
-    # 有默认且有效 → 直接给答案
-    if default and default in valid:
-        print(valid[default])
-        eprint(f"[i] 使用默认库 '{default}'")
-        if invalid:
-            eprint(f"[warn] 另有 {len(invalid)} 个注册路径已失效：{', '.join(invalid)}")
+    try:
+        print(find_vault(__file__))
         return EXIT_OK
-
-    # 只有一个有效库 → 无歧义
-    if len(valid) == 1:
-        k, v = next(iter(valid.items()))
-        print(v)
-        eprint(f"[i] 只有一个有效库 '{k}'")
-        return EXIT_OK
-
-    # 多个有效库但无明确默认 → 必须问用户
-    print("有多个已注册的知识库，但没有指定默认：")
-    for k, v in valid.items():
-        print(f"  · {k}: {v}")
-    print("\n【给 AI 的指示】问用户「这次要写到哪个库？」")
-    print("  临时指定：其他脚本加 --vault <路径>")
-    print(f"  设为默认：python vault_cli.py use <别名>")
-    return EXIT_ASK_USER
+    except VaultNotFoundError as exc:
+        print(exc)
+        return EXIT_ASK_USER
 
 
 def cmd_list(args) -> int:
     vaults, default = all_vaults()
     if not vaults:
-        print("未注册任何知识库。用 `init` 或 `add` 添加。")
+        print("未注册任何知识库。已有知识库用 `add` 注册；没有知识库先用 kg-init 创建。")
         return EXIT_OK
     print(f"# 已注册的知识库（配置：{CONFIG_PATH}）\n")
     for k, v in vaults.items():
@@ -151,12 +118,11 @@ def _register(path: Path, name: str | None, *, created: bool) -> int:
         eprint("       换个 --name，或先 remove 旧的")
         return EXIT_ERR
     data["vaults"][key] = str(path)
-    data.setdefault("default", key)
     save_config(data)
     verb = "已创建并注册" if created else "已注册"
     print(f"✅ {verb} '{key}' → {path}")
-    if data.get("default") == key:
-        print("   （已设为默认库）")
+    if len(data["vaults"]) > 1 and not data.get("default"):
+        print("   当前有多个库且未设默认；使用时需选择，或用 `use <别名>` 保存长期选择。")
     return EXIT_OK
 
 
@@ -182,7 +148,7 @@ def cmd_init(args) -> int:
         eprint(f"       cd ../kg-init")
         eprint(f'       python scripts/migrate.py apply "{path}" --confirm')
     eprint("")
-    eprint(f'       完成后再回来注册：python scripts/vault_cli.py add "{path}"')
+    eprint(f'       完成后注册：python ../kg-vault/scripts/vault_cli.py add "{path}"')
     return EXIT_ERR
 
 
@@ -216,13 +182,13 @@ def cmd_remove(args) -> int:
         return EXIT_ERR
     path = data["vaults"].pop(args.name)
     if data.get("default") == args.name:
-        data["default"] = next(iter(data["vaults"]), None)
-        if data["default"] is None:
-            data.pop("default", None)
+        data.pop("default", None)
     save_config(data)
     print(f"✅ 已移除注册 '{args.name}'（目录未删除：{path}）")
     if data.get("default"):
         print(f"   当前默认库：{data['default']}")
+    elif len(data["vaults"]) > 1:
+        print("   默认库已清除；下次使用时需要选择，或用 `use <别名>` 设置。")
     return EXIT_OK
 
 
@@ -255,7 +221,7 @@ def cmd_doctor(args) -> int:
         if missing:
             problems += 1
     if not vaults:
-        print(" （空）→ 用 init 或 add 添加")
+        print(" （空）→ 已有知识库用 add 注册；没有知识库先用 kg-init 创建")
         problems += 1
     print(f"\n{'✅ 配置正常' if problems == 0 else f'⚠️  有 {problems} 处需要注意'}")
     return EXIT_OK

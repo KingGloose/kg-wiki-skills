@@ -52,7 +52,7 @@ python scripts/ingest_video.py "<链接>" --asr
 
 # 预览不落盘 / 自定义输出
 python scripts/ingest_video.py "<链接>" --stdout
-python scripts/ingest_video.py "<链接>" --out ../../raw/自定义.md
+python scripts/ingest_video.py "<链接>" --out /path/to/vault/raw/自定义.md
 ```
 
 ## 工作流（遵守 AGENTS.md）

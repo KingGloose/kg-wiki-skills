@@ -173,14 +173,14 @@ python scripts/migrate.py plan ~/my-notes       # 2. 看计划（只读）
 python scripts/migrate.py apply ~/my-notes --confirm   # 3. 确认后执行
 ```
 
-**从零开始 / 已有标准结构**：用 `kg-vault` 管理（它会写好配置）
+**从零开始**：先用 `kg-init` 建结构；**已有标准结构**：直接用 `kg-vault` 注册。
 
 ```bash
-cd kg-vault && source ../.venv/bin/activate
+source .venv/bin/activate
 
-python scripts/vault_cli.py init ~/my-vault      # 没有库？从模板建一个
-python scripts/vault_cli.py add /path/to/vault   # 已有库？注册进来
-python scripts/vault_cli.py which                # 确认当前用哪个
+python kg-init/scripts/migrate.py apply ~/my-vault --confirm
+python kg-vault/scripts/vault_cli.py add ~/my-vault
+python kg-vault/scripts/vault_cli.py which
 ```
 
 底层的**四级解析**（所有 skill 通用，前面命中就不往下找）：
@@ -211,11 +211,13 @@ export KG_VAULT=/path/to/your-vault
 ```
 
 切换用 `--vault /path/to/work-vault`，或改 `default`。
+`add` 只注册路径，不替用户选择默认库。只注册了一个有效库时会直接使用；
+注册了多个却没有默认库时，脚本会要求用户选择，不会静默选择第一个。
 
 > **找不到知识库时**，脚本不会瞎猜路径，而是提示 AI **直接问用户**，
-> 拿到路径后可一行写进配置：
+> 拿到路径后用 `kg-vault` 注册：
 > ```bash
-> python -c "from media_to_text import save_config; save_config('/path/to/vault')"
+> python kg-vault/scripts/vault_cli.py add /path/to/vault
 > ```
 
 ### 不需要放进知识库
@@ -335,10 +337,7 @@ cd kg-lint   && python scripts/lint_vault.py
   ln -s "$(pwd)" ~/.agents/skills/kg-wiki-skills     # Claude Code 用 ~/.claude/skills/
   ```
 
-  **软链名必须是 `kg-wiki-skills`** —— 各 skill 文档里用 `$KG` 指代仓库根，
-  假设的就是这个名字。名字不一致时 AI 会找不到仓库根（踩过：软链叫 `kg`，
-  AI 按文档 `cd kg-wiki-skills` 失败后开始瞎猜路径）。
-  `kg-install` 的 `doctor.py` 会检查这一点并给出改名命令。
+  软链名称可以自定；各 skill 的命令都相对自身位置解析，不依赖软链名或调用时的工作目录。
 - 脚本本身是普通 Python CLI，也可脱离 Agent 直接调用
 
 ## 许可

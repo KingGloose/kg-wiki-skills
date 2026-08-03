@@ -62,11 +62,12 @@ python scripts/wechat_to_md.py "<公众号URL>" --no-images
 
    ```bash
    python scripts/wechat_to_md.py "<url>" \
-     --out ../../raw/wx-<日期>-<短标题>.md \
-     --assets ../../assets \
+     --out /path/to/vault/raw/wx-<日期>-<短标题>.md \
+     --assets /path/to/vault/assets \
      --asset-prefix "../assets"
    ```
 
+   将 `/path/to/vault` 换成 `kg-vault which` 返回的知识库绝对路径。
    > raw 里的 md 引用 `../assets/xxx`；若沉淀成 wiki 页，注意按 wiki 页所在层级调整图片相对路径，或统一用 Obsidian `![[assets/文件名]]` 语法（见 AGENTS.md 写作约定）。
 4. 按 `AGENTS.md` 判断沉淀方式：
    - 纯通用知识 → 只在 `index.md` 补唤醒关键词。

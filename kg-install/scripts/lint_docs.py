@@ -34,6 +34,8 @@ UNDEF_VAR_RE = re.compile(r'\$\{?([A-Z][A-Z_]{1,})\}?')
 USER_PATH_RE = re.compile(r'/(?:Users|home)/[a-zA-Z0-9_.-]+/')
 # 依赖全局软链名的路径
 LINK_PATH_RE = re.compile(r'~/\.(?:agents|claude)/skills/[a-zA-Z0-9_-]+/')
+# 假设 skill 仓库嵌在知识库里的相对输出路径
+VAULT_LAYOUT_REL_RE = re.compile(r'(?:^|\s)(?:\.\./)+(?:raw|wiki|assets)(?:/|\s|$)')
 
 KNOWN_VARS = {"HOME", "PATH", "PWD", "SHELL", "USER", "LOCALAPPDATA",
               "KG_VAULT", "VIRTUAL_ENV", "WSL_DISTRO_NAME", "WIN_IP",
@@ -101,6 +103,15 @@ def check_skill(path: Path) -> list[dict]:
                     "severity": "warn", "text": stripped,
                     "why": f"依赖全局软链名（{m.group(0)}）。用户软链可能起别的名字",
                     "fix": "优先用相对 SKILL.md 的路径；确需示例时说明这只是示例",
+                })
+
+            if m := VAULT_LAYOUT_REL_RE.search(stripped):
+                issues.append({
+                    "file": rel, "line": ln, "kind": "assumes-skills-inside-vault",
+                    "severity": "error", "text": stripped,
+                    "why": f"相对输出路径（{m.group(0).strip()}）假设 skill 仓库位于知识库内部，"
+                           "独立部署或软链调用时会写错位置",
+                    "fix": "使用 vault 解析后的绝对路径，或省略 --out 让脚本写入已解析的库",
                 })
 
     return issues

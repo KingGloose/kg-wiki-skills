@@ -193,8 +193,9 @@ Claude Code 用 `~/.claude/skills/`。**建软链前先看目标是否已存在*
 python3 scripts/lint_docs.py          # 退出码 0=干净，1=有错
 ```
 
-查四类问题：写死仓库名（`cd kg-wiki-skills`）、未定义变量（`$KG`）、
-写死用户目录（`/Users/xxx/`）、依赖软链名（`~/.agents/skills/kg/`）。
+查五类问题：写死仓库名（`cd kg-wiki-skills`）、未定义变量（`$KG`）、
+写死用户目录（`/Users/xxx/`）、依赖软链名（`~/.agents/skills/kg/`）、
+假设 skill 位于知识库内的相对输出路径（如 `../../raw/`）。
 
 **为什么要有这个**：曾经文档写死 `cd kg-wiki-skills`，
 但软链叫 `kg`、AI 的工作目录又是用户项目，于是 cd 失败，

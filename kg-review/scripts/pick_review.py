@@ -29,89 +29,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-# ---------- 库根解析（内联，保持本脚本零依赖） ----------
-def _looks_like_vault(p: Path) -> bool:
-    try:
-        return p.is_dir() and (p / "AGENTS.md").is_file() and (p / "wiki").is_dir()
-    except OSError:
-        return False
-
-
-def _walk_up(start: Path, limit: int = 8) -> Path | None:
-    cur = start.resolve()
-    for _ in range(limit):
-        if _looks_like_vault(cur):
-            return cur
-        if cur.parent == cur:
-            break
-        cur = cur.parent
-    return None
-
-
-def find_vault(explicit: str | None = None) -> Path:
-    """定位知识库根。
-
-    优先级：explicit(--vault) → KG_VAULT 环境变量 → 配置文件 → cwd 向上 → 本文件向上。
-    """
-    import os
-    if explicit:
-        p = Path(explicit).expanduser().resolve()
-        if _looks_like_vault(p):
-            return p
-        sys.exit(f"[错误] --vault 指向 {p}，但那里不像知识库（需 AGENTS.md + wiki/）")
-    v = os.environ.get("KG_VAULT")
-    if v:
-        p = Path(v).expanduser().resolve()
-        if _looks_like_vault(p):
-            return p
-        sys.exit(f"[错误] KG_VAULT 指向 {p}，但那里不像知识库（需 AGENTS.md + wiki/）")
-
-    cfg = Path.home() / ".config" / "kg-wiki" / "config.json"
-    if cfg.is_file():
-        try:
-            data = json.loads(cfg.read_text(encoding="utf-8"))
-            # 多库格式：{"default": "名字", "vaults": {"名字": "路径"}}
-            vaults = data.get("vaults")
-            if isinstance(vaults, dict) and vaults:
-                name = data.get("default") or (next(iter(vaults)) if len(vaults) == 1 else None)
-                if name is None:
-                    sys.exit(
-                        "[错误] 配置里有多个知识库但未指定默认：\n"
-                        + "\n".join(f"  · {k}: {v}" for k, v in vaults.items())
-                        + "\n\n【给 AI 的指示】问用户这次要写哪个库，然后："
-                        "\n  临时：加 --vault <路径>"
-                        "\n  长期：kg-vault/scripts/vault_cli.py use <别名>"
-                    )
-                v = vaults.get(name)
-                if v:
-                    p = Path(v).expanduser().resolve()
-                    if _looks_like_vault(p):
-                        return p
-            # 单库格式（向后兼容）
-            v = data.get("vault")
-            if v:
-                p = Path(v).expanduser().resolve()
-                if _looks_like_vault(p):
-                    return p
-        except (json.JSONDecodeError, OSError):
-            pass
-
-    for start in (Path.cwd(), Path(__file__).parent):
-        p = _walk_up(start)
-        if p:
-            return p
-
-    sys.exit(
-        "[错误] 找不到知识库 —— 不知道该读写哪里。\n"
-        "\n【给 AI 的指示】不要猜路径，直接问用户「你的知识库在哪个目录？」\n"
-        "拿到路径后任选一种方式：\n"
-        "  1. 本次临时：  加 --vault /path/to/vault\n"
-        f"  2. 长期配置：  写入 {cfg}\n"
-        '                 内容 {"vault": "/path/to/vault"}\n'
-        "  3. 环境变量：  export KG_VAULT=/path/to/vault\n"
-        "\n知识库需包含 AGENTS.md 和 wiki/ 目录。没有的话用 kg-vault 新建（它有模板）。"
-    )
-
+from media_to_text import find_vault, VaultNotFoundError
 
 
 VAULT = None  # 在 main() 里按 --vault 解析
@@ -221,7 +139,11 @@ def main() -> int:
     args = ap.parse_args()
 
     global VAULT, WIKI
-    VAULT = find_vault(args.vault)
+    try:
+        VAULT = find_vault(__file__, explicit=args.vault)
+    except VaultNotFoundError as exc:
+        eprint(f"[错误] {exc}")
+        return 2
     WIKI = VAULT / "wiki"
 
     log = load_log()

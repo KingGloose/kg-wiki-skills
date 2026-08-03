@@ -23,8 +23,7 @@ description: 学习模式：陪用户系统学习一个新领域。先查库确�
 ### 1. 查库：确认已知起点（别重复讲他已懂的）
 
 ```bash
-cd ../kg-ask && source ../.venv/bin/activate
-python scripts/search_vault.py "<主题>" 
+../bin/kg-py kg-ask/scripts/search_vault.py "<主题>"
 ```
 
 > **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用

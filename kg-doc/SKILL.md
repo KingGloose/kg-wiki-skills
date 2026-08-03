@@ -47,8 +47,8 @@ python scripts/ingest_doc.py /path/to/文件夹 --batch --force          # 强�
 # 网页（普通技术博客；自动跟随 HTTP 与 meta 跳转）
 python scripts/ingest_doc.py "https://blog.example.com/post"
 
-# 自定义输出位置/标题（单文件、URL 有效）
-python scripts/ingest_doc.py /path/to/x.docx --out ../../raw/自定义.md --title "我的标题"
+# 自定义输出位置/标题（单文件、URL 有效；使用知识库绝对路径）
+python scripts/ingest_doc.py /path/to/x.docx --out /path/to/vault/raw/自定义.md --title "我的标题"
 ```
 
 参数：`--batch` 批量 | `--ext` 限定扩展名 | `--force` 覆盖已有 | `--stdout` 预览 | `--out` 输出路径 | `--title` 标题
