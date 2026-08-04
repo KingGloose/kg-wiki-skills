@@ -1,6 +1,6 @@
 ---
 name: kg-lint
-description: 知识库健康检查（体检）：找出孤儿页、死链、raw 原文未沉淀、index.md 唤醒条目缺失、log.md 无记录、内容过短的页。当用户说「体检一下知识库」「检查有没有断链」「哪些页没接入知识网」「lint 一下」，或在一批沉淀工作收尾时使用。只读检查、不自动改文件——发现的问题要和用户讨论后再决定怎么修。
+description: 知识库健康检查（体检）：找出孤儿页、死链、raw 原文未沉淀、index.md 唤醒条目缺失、log.md 无记录、内容过短的页，以及图片体积问题（孤儿图、图片死链、超大图、未压缩图、重复图）。当用户说「体检一下知识库」「检查有没有断链」「哪些页没接入知识网」「库怎么这么大」「图片占用太多」「lint 一下」，或在一批沉淀工作收尾时使用。只读检查、不自动改文件——发现的问题要和用户讨论后再决定怎么修。
 ---
 
 # kg-lint · 库健康检查
@@ -35,11 +35,12 @@ source ../.venv/bin/activate
 python scripts/lint_vault.py                       # 全部检查，人类可读报告
 python scripts/lint_vault.py --json                # 结构化输出
 python scripts/lint_vault.py --only orphan,deadlink # 只跑指定项
+python scripts/lint_vault.py --only image          # 只查图片体积
 ```
 
 退出码：0 = 无问题，1 = 有发现（可用于脚本判断）。
 
-## 六项检查
+## 七项检查
 
 | 检查项 | 找什么 | 为什么重要 |
 |--------|--------|-----------|
@@ -49,6 +50,28 @@ python scripts/lint_vault.py --only orphan,deadlink # 只跑指定项
 | `indexsync` | wiki 有页但 index.md 找不到相关关键词 | 唤醒是 index 的核心职责，漏了等于查不到 |
 | `logsync` | wiki 页在 log.md 里没有痕迹 | 流水账缺记录，追溯不到什么时候怎么来的 |
 | `empty` | 内容 < 400 字符 | 可能是没写完的占位页 |
+| `image` | 孤儿图/图片死链/超大图/未压缩图/重复图 | 图片是库膨胀的主因，拖慢每次 clone |
+
+### 关于 `image` 项
+
+前六项都是文字层面的检查，结果是**体积问题长期无人报警**。实测某真实库悄涨到
+2.6 GB（`.git` 1.6 GB、图片 958 MB），clone 一次要十几分钟才被发现。
+
+五个子项：
+
+| 子项 | 判定 | 处理 |
+|------|------|------|
+| 孤儿图 | 磁盘有、无任何 md/canvas 引用 | 通常可删，但**删前要和主人确认** |
+| 图片死链 | md 引用了、磁盘找不到 | 改引用或补图 |
+| 超大图 | 单张 > 500KB | 压缩 |
+| 未压缩 | 非 WebP 且 > 100KB | 压缩。小图不报——转 WebP 常因头部开销反而变大 |
+| 重复图 | 内容 md5 相同 | 合并引用后删冗余 |
+
+**这一项会扫 `archive/`**，与其他检查不同。因为旧笔记图片正是膨胀主体（实测某库
+958 MB 图片里 906 MB 在 archive），不看等于白查。
+
+压缩交给：库内 `scripts/compress-images.sh`（迁移用），或代码里
+`from media_to_text import compress_dir`（上层 skill 下载图片后调用）。
 
 ## 匹配策略（避免误报）
 
@@ -72,9 +95,14 @@ python scripts/lint_vault.py --only orphan,deadlink # 只跑指定项
 ## 边界
 
 - 只读工具，不改任何文件。
-- 不检查 `archive/`（按 AGENTS.md 旧笔记封存不动）。
+- 前六项不检查 `archive/`（按 AGENTS.md 旧笔记封存不动）；
+  **`image` 项例外**，它必须扫 archive，否则查不到真正的膨胀源。
 - 孤儿页判定只看 wiki 内部互链，不算 index/log 的提及（那是另外两项检查的职责）。
-- 阈值 `MIN_CHARS = 400` 写在脚本里，需要时可改。
+- 阈值写在脚本里，需要时可改：`MIN_CHARS = 400`、`BIG_IMAGE_KB = 500`、
+  `UNCOMPRESSED_MIN_KB = 100`。
+- 孤儿图**判定依据只有 md/canvas 引用**。若库里有 ts/js/json 等文件也引用图片，
+  删除前要另行交叉核对（实测某库 209 处命中都在 Obsidian 排序插件的
+  `customFileOrder` 里，那是文件顺序记录而非内容引用，可以忽略）。
 
 ## 已验证
 
@@ -82,3 +110,6 @@ python scripts/lint_vault.py --only orphan,deadlink # 只跑指定项
 （QuillJs / Vue watch / 转移回答的层级）、1 个 index 缺唤醒条目（`沟通/转移回答的层级`，
 该页 8606 字但 index.md 里只在导言泛泛提过"沟通话术"，实际查不到）。
 死链、raw 未引用、log 记录、内容长度四项均通过。
+
+`image` 项在 6741 张图、327 MB 的库上跑过，结论与独立实现的脚本完全一致
+（图片死链 29、超大图 3、孤儿图 0、重复图 0）。

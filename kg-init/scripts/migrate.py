@@ -29,9 +29,19 @@ TEMPLATES = Path(__file__).resolve().parent.parent / "templates"
 NEW_DIRS = ("wiki", "raw", "assets")
 NEW_FILES = ("AGENTS.md", "index.md", "log.md")
 ARCHIVE = "archive"
+# 图片治理工具链：必须放在**库内**而不是留在 skills 仓库，
+# 因为 pre-commit hook 要调它们，库单独 clone 下来也得能用（自包含）。
+SCRIPT_FILES = (
+    "scripts/lib-imgcompress.sh",
+    "scripts/compress-images.sh",
+    "scripts/fix-refs.py",
+    "scripts/setup.sh",
+    "scripts/hooks/pre-commit",
+)
 # 这些不该被归档（工具/配置/版本控制）
 KEEP_AT_ROOT = {".git", ".gitignore", ".obsidian", ".trash", ".DS_Store",
-                "node_modules", ".venv", "__pycache__", ".vscode", ".idea"}
+                "node_modules", ".venv", "__pycache__", ".vscode", ".idea",
+                "scripts"}
 
 
 def eprint(*a, **k):
@@ -75,6 +85,10 @@ def survey(root: Path) -> dict:
                                "size": size, "files": n_files})
     missing_dirs = [d for d in NEW_DIRS if not (root / d).is_dir()]
     missing_files = [f for f in NEW_FILES if not (root / f).is_file()]
+    missing_scripts = [f for f in SCRIPT_FILES if not (root / f).is_file()]
+    # 模板里叫 gitignore（不带点，否则会被本仓库自己的 .gitignore 规则影响），
+    # 落到目标库时重命名为 .gitignore
+    needs_gitignore = not (root / ".gitignore").is_file()
     return {
         "root": str(root),
         "to_archive": to_archive,
@@ -82,6 +96,8 @@ def survey(root: Path) -> dict:
         "already_llm_wiki": already,
         "missing_dirs": missing_dirs,
         "missing_files": missing_files,
+        "missing_scripts": missing_scripts,
+        "needs_gitignore": needs_gitignore,
     }
 
 
@@ -141,6 +157,19 @@ def cmd_plan(args) -> int:
         print("       所有 kg-* skill 都依赖它。改造后你要按自己习惯改它")
         print("     · `index.md`  —— 知识点唤醒索引")
         print("     · `log.md`    —— 流水账，记录每次摄入/沉淀")
+        step += 1
+
+    if s["missing_scripts"]:
+        print(f"\n**{step}. 装图片体积治理工具链**（{len(s['missing_scripts'])} 个文件到 `scripts/`）\n")
+        print("     知识库最大的膨胀源是粘贴截图直落原始 PNG。实测某真实库悄涨到")
+        print("     2.6 GB（.git 1.6 GB、图片 958 MB），clone 到新电脑要十几分钟。")
+        print("     从第一天就装上防护，比事后治理便宜得多。\n")
+        print("     · `scripts/hooks/pre-commit` —— 提交时自动把新增图片压成 WebP，")
+        print("       并同步改写 md 引用。粘贴截图照旧，提交时自动瘦身")
+        print("     · `scripts/compress-images.sh` —— 批量压缩（迁移旧图用）")
+        print("     · `scripts/setup.sh` —— **每台新机器跑一次**，设置 core.hooksPath")
+        print("       （git 不追踪 .git/hooks/，hook 无法随 clone 传播）")
+        print("     依赖：`brew install webp imagemagick`")
         step += 1
 
     print(f"\n**{step}. 生成 index.md 的唤醒条目**（改造后由 AI 完成）\n")
@@ -231,6 +260,27 @@ def cmd_apply(args) -> int:
             continue
         do(f"复制模板 {f}", lambda s=src, d=root / f: shutil.copy2(s, d))
 
+    # 3.5 图片治理工具链（带可执行位）
+    for rel in s["missing_scripts"]:
+        src = TEMPLATES / rel
+        if not src.is_file():
+            eprint(f"[跳过] 模板里没有 {rel}")
+            continue
+        dst = root / rel
+
+        def _copy(s=src, d=dst):
+            d.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(s, d)
+            d.chmod(0o755)
+
+        do(f"安装 {rel}", _copy)
+
+    if s["needs_gitignore"]:
+        src = TEMPLATES / "gitignore"
+        if src.is_file():
+            do("新建 .gitignore",
+               lambda s=src, d=root / ".gitignore": shutil.copy2(s, d))
+
     # 4. log 记一条
     if not dry:
         log = root / "log.md"
@@ -242,7 +292,10 @@ def cmd_apply(args) -> int:
                      f"{human(sum(i['size'] for i in s['to_archive']))}）到 `archive/`，内容未修改。\n"
                      f"- 新建 {', '.join(s['missing_dirs']) or '(无)'} 目录与 "
                      f"{', '.join(s['missing_files']) or '(无)'}。\n"
-                     f"- 待办：① 按自己习惯改 AGENTS.md ② 用 extract_topics.py 生成 index 唤醒条目\n")
+                     f"- 装上图片体积治理工具链（{len(s['missing_scripts'])} 个文件），"
+                     f"防止截图直落原图把库撑大。\n"
+                     f"- 待办：① 按自己习惯改 AGENTS.md ② 用 extract_topics.py 生成 index 唤醒条目"
+                     f" ③ 跑 scripts/setup.sh 装 hook\n")
             log.write_text(log.read_text(encoding="utf-8") + entry, encoding="utf-8")
             print(f"{tag}在 log.md 记录本次改造")
 
@@ -250,12 +303,16 @@ def cmd_apply(args) -> int:
     if not dry:
         print("下一步（都需要你和 AI 一起做，脚本不自动做）：")
         print(f"  1. **改 AGENTS.md** —— 按自己习惯调整「写作约定」和「领域划分」")
-        print(f"  2. **生成 index 唤醒条目**：")
+        print(f"  2. **装图片压缩 hook**（防库膨胀，每台新机器跑一次）：")
+        print(f"     cd \"{root}\" && bash scripts/setup.sh")
+        print(f"  3. **生成 index 唤醒条目**：")
         print(f"     python extract_topics.py \"{root / ARCHIVE}\"")
         print(f"     → 交给 AI 归并精简 → 写进 index.md")
-        print(f"  3. **注册知识库**（让其他 skill 能找到）：")
+        print(f"  4. **注册知识库**（让其他 skill 能找到）：")
         print(f"     python ../kg-vault/scripts/vault_cli.py add \"{root}\"")
-        print(f"  4. Obsidian 用户：图谱视图建议过滤 `-path:archive` 隐藏旧笔记")
+        print(f"  5. 旧库图片很大的话，批量压缩一次（不可逆，先备份）：")
+        print(f"     cd \"{root}\" && scripts/compress-images.sh && python3 scripts/fix-refs.py")
+        print(f"  6. Obsidian 用户：图谱视图建议过滤 `-path:archive` 隐藏旧笔记")
     return 0
 
 

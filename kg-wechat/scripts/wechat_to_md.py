@@ -8,6 +8,8 @@
   - 单篇公开文章（mp.weixin.qq.com/s/...）无需登录/cookie。
   - 图片由 mmbiz.qpic.cn 提供，有 Referer 防盗链，必须下载到本地，
     否则笔记里图片会裂。默认下载到 --assets 指定目录（相对 md 引用）。
+  - 下载后**默认压缩成 WebP**（复用底层库 media_to_text.compress_image），
+    公众号配图动辄几百 KB，不压是知识库膨胀的主要入口。--no-compress 可关。
   - 默认输出到 stdout（纯 Markdown）；给 --out 则写文件。
 
 退出码: 0 成功；非 0 失败（stderr 有原因）。
@@ -23,6 +25,7 @@ from urllib.parse import urlparse
 from curl_cffi import requests as cffi
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
+from media_to_text import compress_image, summarize_compression, ImageCompressError
 
 WX_HEADERS_REFERER = {"Referer": "https://mp.weixin.qq.com/"}
 UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) "
@@ -103,10 +106,18 @@ def sanitize(name: str) -> str:
     return name[:80] or "wechat-article"
 
 
-def download_images(content_tag, assets_dir: Path, md_asset_prefix: str) -> int:
-    """把正文里的 img 下载到 assets_dir，并把 src 改成本地相对路径。返回下载成功数。"""
+def download_images(content_tag, assets_dir: Path, md_asset_prefix: str,
+                    compress: bool = True) -> tuple[int, list]:
+    """把正文里的 img 下载到 assets_dir，并把 src 改成本地相对路径。
+
+    下载后**立即压缩成 WebP**（复用底层库 media_to_text.compress_image）。
+    公众号配图动辄几百 KB，不压的话是知识库膨胀的主要入口之一。
+
+    返回 (下载成功数, 压缩结果列表)。
+    """
     imgs = content_tag.find_all("img")
     n = 0
+    results = []
     for i, img in enumerate(imgs):
         src = img.get("data-src") or img.get("src") or ""
         if not src or src.startswith("data:"):
@@ -129,14 +140,26 @@ def download_images(content_tag, assets_dir: Path, md_asset_prefix: str) -> int:
         h = hashlib.md5(src.encode()).hexdigest()[:10]
         fname = f"wx-{h}.{fmt}"
         assets_dir.mkdir(parents=True, exist_ok=True)
-        (assets_dir / fname).write_bytes(r.content)
+        saved = assets_dir / fname
+        saved.write_bytes(r.content)
+
+        # 压缩：成功则引用指向新的 .webp；失败或压不动则沿用原文件
+        if compress and fmt != "svg":
+            try:
+                res = compress_image(saved)
+                results.append(res)
+                if res.changed:
+                    fname = res.path.name
+            except ImageCompressError as e:
+                eprint(f"[warn] 图片压缩跳过（{e}）")
+
         img["src"] = f"{md_asset_prefix}/{fname}"
         # 清掉懒加载属性避免干扰 markdownify
         for attr in ("data-src", "data-croporisrc", "data-backh", "data-backw", "data-ratio", "data-type"):
             if img.has_attr(attr):
                 del img[attr]
         n += 1
-    return n
+    return n, results
 
 
 def main():
@@ -146,6 +169,8 @@ def main():
     ap.add_argument("--assets", default=None, help="图片下载目录；默认 <out同级>/assets 或临时忽略")
     ap.add_argument("--asset-prefix", default="assets", help="md 里图片引用的相对前缀，默认 assets")
     ap.add_argument("--no-images", action="store_true", help="不下载图片（保留原链接，可能防盗链裂图）")
+    ap.add_argument("--no-compress", action="store_true",
+                    help="下载图片后不压缩成 WebP（默认压缩，控制库体积）")
     args = ap.parse_args()
 
     if "mp.weixin.qq.com" not in args.url:
@@ -169,8 +194,11 @@ def main():
             assets_dir = Path(args.out).resolve().parent / args.asset_prefix
         else:
             assets_dir = Path.cwd() / args.asset_prefix
-        img_count = download_images(content, assets_dir, args.asset_prefix)
+        img_count, comp_results = download_images(
+            content, assets_dir, args.asset_prefix, compress=not args.no_compress)
         eprint(f"[ok] 图片下载 {img_count} 张 -> {assets_dir}")
+        if comp_results:
+            eprint(f"[ok] {summarize_compression(comp_results)}")
 
     body_md = md(str(content), heading_style="ATX", strip=["script", "style"]).strip()
     body_md = re.sub(r"\n{3,}", "\n\n", body_md)

@@ -13,16 +13,21 @@
   indexsync  wiki 有页但 index.md 没提到对应领域/关键词
   logsync    wiki 页没在 log.md 里留下痕迹（无摄入记录）
   empty      内容过短的页（可能是没写完的坑）
+  image      图片体积：孤儿图、图片死链、超大图、未压缩图
 
 退出码：0 = 无问题；1 = 有发现（供 CI/脚本判断）
 """
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
+import unicodedata
+from collections import defaultdict
 from pathlib import Path
+from urllib.parse import unquote
 
 from media_to_text import find_vault, VaultNotFoundError
 
@@ -36,9 +41,31 @@ LOG = None  # 随 VAULT 在 main() 里初始化
 LINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
 MIN_CHARS = 400  # 低于此字符数视为“可能没写完”
 
+# ---- 图片体检用 ----
+IMG_EXT = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg", ".tiff", ".tif"}
+DOC_EXT = {".md", ".canvas"}
+IMG_SKIP_DIRS = {".git", "node_modules", ".trash", ".obsidian", ".venv", "__pycache__"}
+BIG_IMAGE_KB = 500  # 单张超过此值算“超大图”
+# 未压缩判定：非 webp 且超过这个体积。小图转 webp 常反而变大，不该报。
+UNCOMPRESSED_MIN_KB = 100
+# 图片引用的三种写法：Obsidian 内链 / Markdown / HTML
+IMG_REF_RES = [
+    re.compile(r"!\[\[([^\]\|#]+)"),
+    re.compile(r"!\[[^\]]*\]\(\s*<?([^)>\s]+)"),
+    re.compile(r'<img[^>]*?\ssrc\s*=\s*["\']([^"\']+)["\']', re.I),
+]
+
 
 def eprint(*a, **k):
     print(*a, file=sys.stderr, **k)
+
+
+def _human(num: float) -> str:
+    for unit in ("B", "KB", "MB", "GB"):
+        if num < 1024 or unit == "GB":
+            return f"{num:.1f} {unit}"
+        num /= 1024
+    return f"{num:.1f} GB"
 
 
 def wiki_pages() -> list[Path]:
@@ -213,7 +240,120 @@ def check_empty() -> list[dict]:
     return out
 
 
-CHECKS = ("deadlink", "orphan", "rawlink", "indexsync", "logsync", "empty")
+def _nfc(s: str) -> str:
+    """macOS 文件系统用 NFD，md 正文里常是 NFC，比较前先归一。"""
+    return unicodedata.normalize("NFC", s)
+
+
+def _walk_files(exts: set[str]):
+    """遍历全库（**含 archive**）指定后缀的文件。
+
+    注意：其他检查项按 AGENTS.md 不看 archive，但体积问题必须看——
+    旧库图片就是膨胀的主体（实测某库 958 MB 图片里 906 MB 在 archive）。
+    """
+    for p in VAULT.rglob("*"):
+        if p.is_dir():
+            continue
+        if any(part in IMG_SKIP_DIRS for part in p.parts):
+            continue
+        if p.suffix.lower() in exts:
+            yield p
+
+
+def check_image() -> list[dict]:
+    """图片体积体检。
+
+    为什么需要这项：知识库最大的膨胀源是 Obsidian 粘贴截图直落原始 PNG。
+    早期六项检查全是文字层面的，结果某真实库悄悄涨到 2.6 GB（.git 1.6 GB）
+    都没人报警，clone 一次要十几分钟。
+
+    四个子项：
+      orphan_image  磁盘上有、但没任何 md/canvas 引用
+      dead_image    md 引用了、但磁盘上找不到
+      big_image     单张超阈值
+      uncompressed  非 WebP 且超 100KB（小图转 WebP 反而变大，不报）
+      dup_image     内容完全相同
+    """
+    images = list(_walk_files(IMG_EXT))
+    if not images:
+        return []
+
+    # basename 建索引：md 里的引用路径写法五花八门（相对/绝对/仅文件名/URL编码），
+    # 而图片 basename 基本唯一，按 basename 匹最稳。
+    on_disk: dict[str, Path] = {}
+    for p in images:
+        on_disk.setdefault(_nfc(p.name).lower(), p)
+
+    referenced: set[str] = set()
+    dead: list[dict] = []
+    for doc in _walk_files(DOC_EXT):
+        try:
+            text = doc.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            continue
+        for pat in IMG_REF_RES:
+            for ref in pat.findall(text):
+                if re.match(r"^[a-z]+://", ref, re.I):
+                    continue
+                clean = _nfc(unquote(ref.split("|")[0].split("#")[0])).strip()
+                name = Path(clean).name.lower()
+                if not name or Path(name).suffix not in IMG_EXT:
+                    continue
+                if name in on_disk:
+                    referenced.add(name)
+                else:
+                    dead.append({
+                        "kind": "dead_image",
+                        "page": str(doc.relative_to(VAULT)),
+                        "ref": ref,
+                    })
+
+    out: list[dict] = []
+
+    for name, p in sorted(on_disk.items()):
+        if name not in referenced:
+            out.append({
+                "kind": "orphan_image",
+                "image": str(p.relative_to(VAULT)),
+                "bytes": p.stat().st_size,
+            })
+
+    out.extend(dead)
+
+    for p in images:
+        size = p.stat().st_size
+        if size > BIG_IMAGE_KB * 1024:
+            out.append({
+                "kind": "big_image",
+                "image": str(p.relative_to(VAULT)),
+                "bytes": size,
+            })
+        elif p.suffix.lower() not in (".webp", ".svg") and size > UNCOMPRESSED_MIN_KB * 1024:
+            out.append({
+                "kind": "uncompressed",
+                "image": str(p.relative_to(VAULT)),
+                "bytes": size,
+            })
+
+    by_hash: dict[str, list[Path]] = defaultdict(list)
+    for p in images:
+        try:
+            by_hash[hashlib.md5(p.read_bytes()).hexdigest()].append(p)
+        except OSError:
+            continue
+    for group in by_hash.values():
+        if len(group) > 1:
+            out.append({
+                "kind": "dup_image",
+                "image": str(group[0].relative_to(VAULT)),
+                "copies": len(group),
+                "bytes": group[0].stat().st_size * (len(group) - 1),
+            })
+
+    return out
+
+
+CHECKS = ("deadlink", "orphan", "rawlink", "indexsync", "logsync", "empty", "image")
 
 
 def main() -> int:
@@ -261,6 +401,8 @@ def main() -> int:
         result["logsync"] = check_logsync()
     if "empty" in todo:
         result["empty"] = check_empty()
+    if "image" in todo:
+        result["image"] = check_image()
 
     total = sum(len(v) for v in result.values())
 
@@ -284,6 +426,15 @@ def main() -> int:
         "indexsync": ("index.md 唤醒条目缺失", "修：在 index 对应领域补关键词（唤醒是 index 的职责）"),
         "logsync": ("log.md 无摄入记录", "修：补一条 log，或确认是早期页无需追记"),
         "empty": (f"内容过短（<{MIN_CHARS} 字符，可能没写完）", "修：补完或删除占位页"),
+        "image": ("图片体积问题", "修：压缩或删除（见下方按类型分组）"),
+    }
+
+    img_labels = {
+        "orphan_image": "孤儿图（无人引用）",
+        "dead_image": "图片死链（引用了不存在的图）",
+        "big_image": f"超大图（>{BIG_IMAGE_KB}KB）",
+        "uncompressed": f"未压缩（非 WebP 且 >{UNCOMPRESSED_MIN_KB}KB）",
+        "dup_image": "重复图（内容相同）",
     }
 
     for k in todo:
@@ -291,7 +442,32 @@ def main() -> int:
         title, hint = titles[k]
         mark = "✅" if not items else "⚠️"
         print(f"## {mark} {title} — {len(items)}")
-        if items:
+        if items and k == "image":
+            # image 项按子类型分组，并给出可回收的体积（体积才是这项的重点）
+            grouped: dict[str, list[dict]] = defaultdict(list)
+            for it in items:
+                grouped[it["kind"]].append(it)
+            for kind in ("orphan_image", "dead_image", "big_image",
+                         "uncompressed", "dup_image"):
+                sub = grouped.get(kind)
+                if not sub:
+                    continue
+                total_bytes = sum(x.get("bytes", 0) for x in sub)
+                size_note = f"，{_human(total_bytes)}" if total_bytes else ""
+                print(f"   [{img_labels[kind]}] {len(sub)} 项{size_note}")
+                for it in sorted(sub, key=lambda x: -x.get("bytes", 0))[:8]:
+                    if kind == "dead_image":
+                        print(f"     · {it['page']}  →  {it['ref']}")
+                    elif kind == "dup_image":
+                        print(f"     · {it['image']}  ({it['copies']} 份)")
+                    else:
+                        print(f"     · {_human(it['bytes']):>9}  {it['image']}")
+                if len(sub) > 8:
+                    print(f"     … 另有 {len(sub) - 8} 项")
+            print(f"   建议：{hint}")
+            print("   压缩：库内 scripts/compress-images.sh，"
+                  "或代码调 from media_to_text import compress_dir")
+        elif items:
             print(f"   建议：{hint}")
             for it in items[:30]:
                 if k == "deadlink":

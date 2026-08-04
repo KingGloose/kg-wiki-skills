@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# 入库即压：提交前把本次新增/修改的图片自动转成 WebP，并同步改写 md 引用。
+#
+# 装法（新机器 clone 后跑一次）: scripts/setup.sh
+# 临时跳过: git commit --no-verify
+#
+# 只处理本次暂存的图片，不扫全库，所以日常提交几乎无感。
+
+set -uo pipefail
+
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT" || exit 1
+
+[[ -f scripts/lib-imgcompress.sh ]] || exit 0
+source scripts/lib-imgcompress.sh
+
+# 暂存区里新增(A)/修改(M)/改名(R) 的图片，排除已是 webp 的
+STAGED=$(git diff --cached --name-only --diff-filter=AMR -z \
+  | tr '\0' '\n' \
+  | grep -iE '\.(png|jpe?g|gif|bmp)$' || true)
+
+[[ -z $STAGED ]] && exit 0
+
+echo "[pre-commit] 检测到新增图片，自动压缩为 WebP..."
+
+MAP=$(mktemp); trap 'rm -f "$MAP"' EXIT
+saved_before=0
+saved_after=0
+converted=0
+
+while IFS= read -r rel; do
+  [[ -f $rel ]] || continue
+  dir=$(dirname "$rel"); base=$(basename "$rel"); stem="${base%.*}"
+  dst="$dir/$stem.webp"
+  [[ -e $dst ]] && dst="$dir/${stem}-1.webp"
+
+  before=$(stat -f '%z' "$rel" 2>/dev/null || echo 0)
+  if compress_one "$rel" "$dst"; then
+    after=$(stat -f '%z' "$dst")
+    printf '%s\t%s\n' "$rel" "$dst" >> "$MAP"
+    git rm -q --cached "$rel" 2>/dev/null || true
+    rm -f "$rel"
+    git add "$dst"
+    saved_before=$((saved_before + before))
+    saved_after=$((saved_after + after))
+    converted=$((converted + 1))
+    echo "  $(human "$before") -> $(human "$after")  $dst"
+  fi
+done <<< "$STAGED"
+
+if (( converted == 0 )); then
+  echo "[pre-commit] 没有可压缩的图片，继续提交。"
+  exit 0
+fi
+
+# 改写引用并把受影响的 md 一起 stage，避免提交后图没了引用还指旧名
+cp "$MAP" .compress-map.tsv
+python3 scripts/fix-refs.py >/dev/null 2>&1 || true
+rm -f .compress-map.tsv
+
+CHANGED_DOCS=$(git diff --name-only -z -- '*.md' '*.canvas' | tr '\0' '\n' || true)
+if [[ -n $CHANGED_DOCS ]]; then
+  while IFS= read -r d; do
+    [[ -n $d ]] && git add "$d"
+  done <<< "$CHANGED_DOCS"
+fi
+
+echo "[pre-commit] 压缩 $converted 张: $(human "$saved_before") -> $(human "$saved_after")"
+exit 0

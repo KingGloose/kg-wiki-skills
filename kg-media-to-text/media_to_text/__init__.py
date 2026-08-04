@@ -12,6 +12,15 @@ from .router import to_text
 from .detect import detect_kind
 from .vault import find_vault, looks_like_vault, save_config, VaultNotFoundError
 from .hotwords import extract_hotwords
+from .imgcompress import (
+    compress_image,
+    compress_dir,
+    check_deps as check_image_deps,
+    summarize as summarize_compression,
+    human_size,
+    CompressResult,
+    ImageCompressError,
+)
 from .types import (
     SourceKind,
     TextResult,
@@ -28,6 +37,13 @@ __all__ = [
     "save_config",
     "VaultNotFoundError",
     "extract_hotwords",
+    "compress_image",
+    "compress_dir",
+    "check_image_deps",
+    "summarize_compression",
+    "human_size",
+    "CompressResult",
+    "ImageCompressError",
     "SourceKind",
     "TextResult",
     "MediaToTextError",

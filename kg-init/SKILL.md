@@ -63,19 +63,31 @@ python scripts/migrate.py apply <笔记目录> --confirm --dry-run   # 建议先
 python scripts/migrate.py apply <笔记目录> --confirm             # 真正执行
 ```
 
-执行后**还有三件事要和用户一起做**（脚本故意不自动做）：
+执行后**还有四件事要和用户一起做**（脚本故意不自动做）：
 
 ```bash
-# 1. 生成 index 唤醒条目（需要判断，不能自动化）
+# 1. 装图片压缩 hook（防库膨胀，**每台新机器跑一次**）
+cd <笔记目录> && bash scripts/setup.sh
+
+# 2. 生成 index 唤醒条目（需要判断，不能自动化）
 python scripts/extract_topics.py <笔记目录>/archive
 #    → 输出是草稿。你要做三件事再写进 index.md：
 #      归并同类 / 删掉无价值的 / 压缩成可快速扫描的关键词行
 
-# 2. 注册知识库，让其他 skill 能找到
+# 3. 注册知识库，让其他 skill 能找到
 python ../kg-vault/scripts/vault_cli.py add <笔记目录>
 
-# 3. 陪用户改 AGENTS.md（templates/AGENTS.md 只是起点）
+# 4. 陪用户改 AGENTS.md（templates/AGENTS.md 只是起点）
 #    尤其「写作约定」和「领域划分」——那是最个人化的部分
+```
+
+旧库图片很大时，可以再批量压缩一次（**不可逆，先备份**）：
+
+```bash
+cd <笔记目录>
+DRY_RUN=1 scripts/compress-images.sh   # 先估算能省多少
+scripts/compress-images.sh             # 压缩
+python3 scripts/fix-refs.py            # 同步改写 md 引用
 ```
 
 ## 与 kg-vault 的分工
@@ -88,8 +100,36 @@ python ../kg-vault/scripts/vault_cli.py add <笔记目录>
 其他 skill 能找到它了
 ```
 
-**模板在本 skill 的 `templates/`**（`AGENTS.md` / `index.md` / `log.md`）——
+**模板在本 skill 的 `templates/`**：
+
+- 根文件：`AGENTS.md` / `index.md` / `log.md` / `gitignore`（落地时改名为 `.gitignore`）
+- 图片治理工具链：`templates/scripts/`（见下节）
+
 改模板 = 改所有新库的起点。
+
+## 为什么建库就装图片治理
+
+知识库最大的膨胀源是 Obsidian 粘贴截图直落原始 PNG，一张动辄几百 KB。
+实测某真实库悄涨到 **2.6 GB**（`.git` 1.6 GB、图片 958 MB / 6958 张），
+clone 到新电脑要十几分钟才被发现。治理后降到 690 MB，但代价是重建 git 历史。
+
+**从第一天就装上防护，比事后治理便宜得多**。装三样东西：
+
+| 文件 | 作用 |
+|------|------|
+| `scripts/hooks/pre-commit` | 提交时自动把新增图片压成 WebP 并改写 md 引用，日常无感 |
+| `scripts/compress-images.sh` + `fix-refs.py` | 批量压缩（迁移旧图用） |
+| `scripts/setup.sh` | 设置 `core.hooksPath`，**每台新机器跑一次** |
+
+> hook 为什么要手动装：git 不追踪 `.git/hooks/`，hook 无法随 clone 传播。
+> 所以脚本作为普通文件放在库的 `scripts/hooks/` 提交进去，`setup.sh` 把
+> `core.hooksPath` 指过去。
+
+**为什么压缩工具放库内而不是留在本仓库**：pre-commit hook 要调它们，
+库单独 clone 下来也得能用（自包含）。体检则相反——那是按需检查，留在
+`kg-lint --only image`；上层 skill 下载图片时用 `media_to_text.compress_image`。
+
+依赖：`brew install webp imagemagick`
 
 ## 改造策略：整体归档 + 向前新建
 

@@ -1,0 +1,14 @@
+node_modules
+.trash
+.obsidian/workspace.json
+.obsidian/workspaces.json
+.venv
+
+# agent 运行时产物
+.pi-subagents/
+
+# 图片压缩中间产物
+.compress-map.tsv
+*.tmp*.webp
+
+.DS_Store
