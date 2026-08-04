@@ -39,6 +39,10 @@ INDEX = None  # 随 VAULT 在 main() 里初始化
 LOG = None  # 随 VAULT 在 main() 里初始化
 
 LINK_RE = re.compile(r"\[\[([^\]|]+)(?:\|[^\]]*)?\]\]")
+# 代码块（围栏与行内）里的 [[xxx]] 是**示例而非真双链**。
+# 写“怎么写 Obsidian 引用”这类页时不剔掉会报一堆假死链。
+FENCE_RE = re.compile(r"^(?P<fence>```+|~~~+).*?^(?P=fence)", re.S | re.M)
+INLINE_CODE_RE = re.compile(r"`[^`\n]+`")
 MIN_CHARS = 400  # 低于此字符数视为“可能没写完”
 
 # ---- 图片体检用 ----
@@ -66,6 +70,17 @@ def _human(num: float) -> str:
             return f"{num:.1f} {unit}"
         num /= 1024
     return f"{num:.1f} GB"
+
+
+def strip_code(text: str) -> str:
+    """把代码块/行内代码抿成空白，保留换行以不错位。
+
+    为什么不直接删：删了会让后续行号与原文对不上，不好报位置。
+    """
+    def blank(m: re.Match) -> str:
+        return re.sub(r"[^\n]", " ", m.group(0))
+
+    return INLINE_CODE_RE.sub(blank, FENCE_RE.sub(blank, text))
 
 
 def wiki_pages() -> list[Path]:
@@ -129,7 +144,7 @@ def collect_links() -> tuple[dict[str, list[tuple[str, str]]], list[dict]]:
         except OSError as e:
             dead.append({"page": page_key(p), "link": "(读取失败)", "reason": str(e)})
             continue
-        for m in LINK_RE.finditer(text):
+        for m in LINK_RE.finditer(strip_code(text)):
             target = m.group(1)
             resolved = resolve_link(target, p)
             if resolved is None:
@@ -291,6 +306,8 @@ def check_image() -> list[dict]:
             text = doc.read_text(encoding="utf-8", errors="ignore")
         except OSError:
             continue
+        # 同样要剔代码块：写图片引用示例的页不应报假死链
+        text = strip_code(text)
         for pat in IMG_REF_RES:
             for ref in pat.findall(text):
                 if re.match(r"^[a-z]+://", ref, re.I):
