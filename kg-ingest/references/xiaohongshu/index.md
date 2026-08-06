@@ -1,8 +1,3 @@
----
-name: kg-xiaohongshu
-description: 小红书单篇笔记摄入：解析分享链接拿到标题/作者/正文/话题/互动数据，图片下载到本地，存入 raw/ 后按 LLM Wiki 契约沉淀。当用户给出小红书链接（xhslink.cn/... 或 xiaohongshu.com/explore|discovery/...）、说「解析这篇小红书」「这个笔记存一下」时使用。**小红书多为图片笔记，正文常常只有话题标签，真正的内容在图里** —— 沉淀前必须让用户确认图里讲了什么，不能只存标题。不负责搜索和收藏夹（那两个不是服务端渲染的，要走 kg-browser）、公众号（走 kg-wechat）、B站（kg-bilibili）、知乎（kg-zhihu）。
----
-
 # 小红书摄入
 
 ## 为什么是纯 HTTP，不用浏览器
@@ -70,20 +65,20 @@ description: 小红书单篇笔记摄入：解析分享链接拿到标题/作者
 
 ```bash
 # 基本：抓一篇存进 raw/
-../bin/kg-py kg-xiaohongshu/scripts/xhs_to_md.py "<分享链接>" --out "<vault>/raw/xhs-<slug>.md"
+../../../bin/kg-py kg-ingest/references/xiaohongshu/xhs_to_md.py "<分享链接>" --out "<vault>/raw/xhs-<slug>.md"
 
 # 图片放到指定目录（默认是 <out同级>/assets）
-../bin/kg-py kg-xiaohongshu/scripts/xhs_to_md.py "<url>" --out x.md --assets "<vault>/assets"
+../../../bin/kg-py kg-ingest/references/xiaohongshu/xhs_to_md.py "<url>" --out x.md --assets "<vault>/assets"
 
 # 不下载图片（只要元信息时）
-../bin/kg-py kg-xiaohongshu/scripts/xhs_to_md.py "<url>" --no-images
+../../../bin/kg-py kg-ingest/references/xiaohongshu/xhs_to_md.py "<url>" --no-images
 
 # 看原始数据结构（调试用）
-../bin/kg-py kg-xiaohongshu/scripts/xhs_to_md.py "<url>" --no-images --json
+../../../bin/kg-py kg-ingest/references/xiaohongshu/xhs_to_md.py "<url>" --no-images --json
 ```
 
 `kg-py` 自己找 venv，无需激活也无需 cd。也可以先
-`source ../.venv/bin/activate` 再用 `python3`，效果一样。
+`source ../../../.venv/bin/activate` 再用 `python3`，效果一样。
 
 链接从小红书 App「分享 → 复制链接」拿，形如
 `http://xhslink.cn/o/xxxxx`。用户通常会连带那句

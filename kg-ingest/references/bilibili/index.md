@@ -1,8 +1,3 @@
----
-name: kg-bilibili
-description: 读取用户 B 站「稍后再看」/收藏夹，也可按关键词主动搜索全站视频，抓取视频字幕（CC/AI），交由 AI 解析后按 LLM Wiki 契约沉淀进知识库。当用户想「让 AI 消化我稍后再看的视频」「挑几个视频做成笔记」「解析某个 B 站视频」时使用。**领域不限**：技术、话术沟通、心理、商业财经、人文历史、健康、生活技艺等一切知识向内容都在范围内。无字幕视频可用 --asr 走本地转写（委派底层库 kg-media-to-text）。不负责公众号（走 kg-wechat）、播客（走 kg-xiaoyuzhou）、本地文档（走 kg-doc）。
----
-
 # kg-bilibili · B 站视频消化 skill
 
 把用户稍后再看/收藏里的视频，抓成文字，让 AI 解析，最终按 `AGENTS.md` 的 Ingest 流程沉淀进 `wiki/`。
@@ -16,19 +11,19 @@ description: 读取用户 B 站「稍后再看」/收藏夹，也可按关键词
 
 ## 前置：环境准备
 
-**环境已统一到 `skills/.venv`，安装步骤见 [`../README.md`](../README.md)。**
+**环境已统一到 `skills/.venv`，安装步骤见 [`../../../README.md`](../../../README.md)。**
 本 skill 需要：`base` + `bilibili`（无字幕视频要转写则额外 `asr-mac`/`asr-linux` + 底层库 + ffmpeg）。
 
 ```bash
 # 路径相对本 SKILL.md 所在目录（AI 会自动解析成绝对路径）
-source ../.venv/bin/activate
+source ../../../.venv/bin/activate
 ```
 
 > **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
 > `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
 >
-> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
+> 嫌麻烦可用 `../../../bin/kg-py`，它自己找环境，无需激活也无需 cd：
+> `../../../bin/kg-py kg-ingest/references/bilibili/<脚本>.py [参数]`
 
 ### 配置 cookie（跨平台通用，一次性）
 
@@ -150,7 +145,7 @@ python scripts/get_transcript.py <bvid> --asr --hotword Transformer --hotword-sp
 
 - 人名务必用 `--hotword-speaker`：实测人名要进"我是…"句式才纠得对。
 - 简介质量决定效果：只有一个社区链接的视频抽不到专名（URL 会被过滤掉）。
-- 详细原理和实测数据见 `../kg-media-to-text/SKILL.md`。
+- 详细原理和实测数据见 `../../../kg-media-to-text/SKILL.md`。
 
 ## 边界与坑
 

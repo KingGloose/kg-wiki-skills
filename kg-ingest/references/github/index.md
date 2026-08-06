@@ -1,8 +1,3 @@
----
-name: kg-github
-description: GitHub 内容摄入：拉取我 star 的仓库、我提的 issue/PR、单个 issue 全文（含讨论）、仓库概况+README，存入 raw/ 后按 LLM Wiki 契约沉淀。当用户说「我 star 了哪些 X 相关的仓库」「把这个 issue 存下来」「我在 GitHub 上提过什么问题」「这个仓库是干什么的」，或排查问题时需要留存 issue 里的一手结论时使用。取数走官方 gh CLI（已认证），不自己调 REST。不负责代码阅读/仓库整体分析（那是 fetch_content 或本地 clone 的事）、也不负责往 GitHub 写东西（本 skill 只读）。
----
-
 # GitHub 摄入
 
 ## 为什么用 `gh` 而不是自己调 REST
@@ -35,17 +30,17 @@ HTTPS_PROXY=http://127.0.0.1:7897 gh api user --jq .login
 
 ```bash
 # 我 star 了什么（按语言分组，按 star 数排序）
-../bin/kg-py kg-github/scripts/gh_fetch.py stars
-../bin/kg-py kg-github/scripts/gh_fetch.py stars --language Python
+../../../bin/kg-py kg-ingest/references/github/gh_fetch.py stars
+../../../bin/kg-py kg-ingest/references/github/gh_fetch.py stars --language Python
 
 # 单个 issue/PR 全文 + 全部讨论
-../bin/kg-py kg-github/scripts/gh_fetch.py issue "sjzar/chatlog#197"
+../../../bin/kg-py kg-ingest/references/github/gh_fetch.py issue "sjzar/chatlog#197"
 
 # 我提的 issue / PR（含正文）
-../bin/kg-py kg-github/scripts/gh_fetch.py mine --limit 30
+../../../bin/kg-py kg-ingest/references/github/gh_fetch.py mine --limit 30
 
 # 仓库概况 + README
-../bin/kg-py kg-github/scripts/gh_fetch.py repo "Tencent/WeChatReading"
+../../../bin/kg-py kg-ingest/references/github/gh_fetch.py repo "Tencent/WeChatReading"
 
 # 都支持 --out 落盘
 ... --out "<vault>/raw/gh-<slug>.md"

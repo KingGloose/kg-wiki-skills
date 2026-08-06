@@ -1,8 +1,3 @@
----
-name: kg-weread
-description: 微信读书：书架体检（找出吃灰的书、读了一半搁下的书）、划线导出、阅读统计。当用户问「我书架上哪些书该读了」「哪些书买了没看」「我这个月读了多久」「把某本书的划线整理出来」，或想把读书笔记沉淀进知识库时使用。取数走腾讯官方 skill 的 Agent API Gateway（vendor/WeChatReading），本 skill 补它没有的聚合分析与沉淀流程。不负责在微信读书里写东西（只读），也不负责书城买书。
----
-
 # 微信读书
 
 ## 和 vendor/WeChatReading 的分工
@@ -15,7 +10,7 @@ gateway）。它的工作流是**被动应答** —— 你问哪本书它查哪�
 1. **主动扫全架做聚合** —— 哪些在吃灰、哪些读了一半、哪些投入多没读完
 2. **接沉淀契约** —— 划线导出成 Markdown 落 `raw/`，再进 `wiki/`
 
-接口参数和返回字段以 `../vendor/WeChatReading/skills/*.md` 为准，
+接口参数和返回字段以 `../../../vendor/WeChatReading/skills/*.md` 为准，
 那边写得比本文档细（含各字段单位、易错点）。
 
 ## 一个实测得出的关键结论
@@ -49,17 +44,17 @@ security add-generic-password -a weread -s kg-weread-apikey -w '<wrk-xxx>' -U
 
 ```bash
 # 书架体检（第一次会逐本查进度，之后 6 小时内走缓存）
-../bin/kg-py kg-weread/scripts/weread.py shelf
-../bin/kg-py kg-weread/scripts/weread.py shelf --refresh    # 强制重拉
+../../../bin/kg-py kg-ingest/references/weread/weread.py shelf
+../../../bin/kg-py kg-ingest/references/weread/weread.py shelf --refresh    # 强制重拉
 
 # 某本书的划线（书名关键词或 bookId 都行）
-../bin/kg-py kg-weread/scripts/weread.py notes "非暴力沟通"
+../../../bin/kg-py kg-ingest/references/weread/weread.py notes "非暴力沟通"
 
 # 哪些书有笔记
-../bin/kg-py kg-weread/scripts/weread.py notebooks
+../../../bin/kg-py kg-ingest/references/weread/weread.py notebooks
 
 # 阅读统计
-../bin/kg-py kg-weread/scripts/weread.py stats --mode monthly
+../../../bin/kg-py kg-ingest/references/weread/weread.py stats --mode monthly
 #   weekly / monthly / annually / overall
 
 # 都支持 --out 落盘

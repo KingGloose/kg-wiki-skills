@@ -37,11 +37,7 @@ AI 时代，个人笔记的价值变了。
 
 | skill | 能力 |
 |-------|------|
-| `kg-bilibili` | B 站：稍后再看 / 收藏夹 / 全站搜索 / CC/AI 字幕 / 无字幕时本地 ASR 兜底 |
-| `kg-youtube` | YouTube：官方与自动字幕（覆盖率高，多数视频零算力）+ ASR 兜底 |
-| `kg-xiaoyuzhou` | 小宇宙播客：元信息 + shownotes（常含时间戳大纲）+ 可选本地转写 |
-| `kg-wechat` | 微信公众号文章（含图片防盗链处理） |
-| `kg-zhihu` | 知乎专栏 / 回答 / 问题页（走真实浏览器，绕过 JS 挑战） |
+| `kg-ingest` | **内容摄入统一入口**：B站 / YouTube / 知乎 / 小红书 / 公众号 / 小宇宙 / GitHub / 微信读书。SKILL.md 只做路由，细节在 `references/<平台>/index.md` 按需披露 |
 | `kg-doc` | 本地文档：PDF / Word / PPT / Excel / txt / md，支持文件夹批量与网页 URL |
 
 ### 前置：装环境、知识库在哪
@@ -101,7 +97,7 @@ L2  多模态补充     仅对"文字丢了关键信息"的局部（关键帧、
   kg-browser/          真实浏览器读取（登录态、JS 挑战）
 
 上层（各自独立触发，按知识库契约沉淀）
-  kg-bilibili/  kg-youtube/  kg-xiaoyuzhou/  kg-wechat/  kg-zhihu/  kg-doc/
+  kg-ingest/    kg-doc/
 ```
 
 **转换能力沉到底层复用，沉淀规则永远归上层。** 上层通过
@@ -274,11 +270,6 @@ cd ../kg-vault && python scripts/vault_cli.py add ~/my-vault    # 再注册
 |-------|------|
 | `kg-media-to-text`（文档） | `base` + `doc` |
 | `kg-media-to-text`（转写） | `base` + `asr-mac` 或 `asr-linux` + ffmpeg |
-| `kg-bilibili` | `base` + `bilibili`（`--asr` 还需 asr-* + ffmpeg） |
-| `kg-youtube` | `base` + `asr-*`（为其中的 yt-dlp） |
-| `kg-xiaoyuzhou` | `base`（仅 shownotes）；`--transcribe` 还需 asr-* |
-| `kg-wechat` | `base` + `wechat` |
-| `kg-zhihu` | `base` + `wechat`；浏览器能力依赖 `kg-browser` |
 | `kg-doc` | `base` + `doc` |
 | `kg-browser` | 无 Python 依赖；需 `chrome-devtools-mcp` CLI |
 | `kg-install` / `kg-vault` / `kg-init` / `kg-ask` / `kg-lint` / `kg-review` / `kg-learn` / `kg-capture` | 无额外依赖（纯标准库） |

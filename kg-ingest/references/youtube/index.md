@@ -1,8 +1,3 @@
----
-name: kg-youtube
-description: YouTube 视频摄入：优先白拿官方/自动字幕（零算力成本），无字幕才本地 ASR 转写，含元信息与简介，存入 raw/ 后由 AI 解析并按 LLM Wiki 契约沉淀。当用户给出 YouTube 链接或视频 ID、说「解析这个视频」「这个演讲讲了什么」「把这个 YouTube 存进知识库」时使用。转写委派底层库 kg-media-to-text。不负责 B站（走 kg-bilibili）、播客（走 kg-xiaoyuzhou）、公众号（走 kg-wechat）、本地文档（走 kg-doc）。
----
-
 # kg-youtube · YouTube 视频消化
 
 把 YouTube 上的技术演讲/教程转成可读文字，AI 解析后按 `AGENTS.md` 沉淀进 `wiki/`。
@@ -27,14 +22,14 @@ B站很多视频没有 CC/AI 字幕，得走 ASR。
 
 ```bash
 # 路径相对本 SKILL.md 所在目录（AI 会自动解析成绝对路径）
-source ../.venv/bin/activate
+source ../../../.venv/bin/activate
 ```
 
 > **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
 > `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
 >
-> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
+> 嫌麻烦可用 `../../../bin/kg-py`，它自己找环境，无需激活也无需 cd：
+> `../../../bin/kg-py kg-ingest/references/youtube/<脚本>.py [参数]`
 
 ## 用法
 

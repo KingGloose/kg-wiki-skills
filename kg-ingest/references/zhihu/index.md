@@ -1,8 +1,3 @@
----
-name: kg-zhihu
-description: 知乎内容摄入：读取专栏文章、回答、问题页多回答，转成 Markdown 存入 raw/，再按 LLM Wiki 契约沉淀。当用户给出知乎链接（zhuanlan.zhihu.com/p/... 或 zhihu.com/question/...）、说「解析这篇知乎」「这个回答存一下」「这个问题下的回答帮我看看」时使用。知乎有 JS 挑战（zse-ck），纯 HTTP 抓取会 403，故浏览器操作委派底层 kg-browser（走用户已登录的真实 Chrome）。不负责公众号（走 kg-wechat）、B站（kg-bilibili）、播客（kg-xiaoyuzhou）、本地文档（kg-doc）。
----
-
 # kg-zhihu · 知乎内容消化
 
 把知乎上的好文章/回答转成可读 Markdown，AI 解析后按 `AGENTS.md` 沉淀进 `wiki/`。
@@ -24,7 +19,7 @@ description: 知乎内容摄入：读取专栏文章、回答、问题页多回�
 
 ## 环境
 
-- 底层：见 `../kg-browser/SKILL.md`（需 `chrome-devtools` CLI + Chrome 开 remote debugging）
+- 底层：见 `../../../kg-browser/SKILL.md`（需 `chrome-devtools` CLI + Chrome 开 remote debugging）
 - 转 Markdown：`markdownify`（`requirements/wechat.txt` 里已有）
 
 ## 工作流
@@ -32,14 +27,14 @@ description: 知乎内容摄入：读取专栏文章、回答、问题页多回�
 ### 第 1 步：连接浏览器（每次会话首次）
 
 ```bash
-bash ../kg-browser/scripts/connect-chrome.sh
+bash ../../../kg-browser/scripts/connect-chrome.sh
 ```
 
 > **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
 > `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
 >
-> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
+> 嫌麻烦可用 `../../../bin/kg-py`，它自己找环境，无需激活也无需 cd：
+> `../../../bin/kg-py kg-ingest/references/zhihu/<脚本>.py [参数]`
 
 连接脚本成功前不要跑任何页面命令（否则会操作到没有登录态的隔离浏览器）。
 
@@ -48,11 +43,11 @@ bash ../kg-browser/scripts/connect-chrome.sh
 先从本地 Chrome 历史/书签找：
 
 ```bash
-python3 ../kg-browser/scripts/find-history.py --keywords 知乎 <主题词> --articles-only
+python3 ../../../kg-browser/scripts/find-history.py --keywords 知乎 <主题词> --articles-only
 ```
 
 AI 应主动扩展同义词提高命中（如用户说"讲知识库那篇"→ `知识库 wiki 笔记 knowledge`）。
-拿到候选让用户确认是哪篇，别自己挑。详见 `../kg-browser/references/history-search.md`。
+拿到候选让用户确认是哪篇，别自己挑。详见 `../../../kg-browser/references/history-search.md`。
 
 ### 第 2 步：打开目标页
 
@@ -61,7 +56,7 @@ AI 应主动扩展同义词提高命中（如用户说"讲知识库那篇"→ `�
 
 ### 第 3 步：按页面类型取正文
 
-**选择器与坑见 `../kg-browser/references/site-selectors.md` 的知乎小节。**
+**选择器与坑见 `../../../kg-browser/references/site-selectors.md` 的知乎小节。**
 关键差异（不要用一套写法套所有页面）：
 
 | 页面类型 | 要点 |
@@ -112,5 +107,5 @@ chrome-devtools evaluate_script "() => document.querySelector('<选择器>').out
 - **不批量爬**：一次处理用户指定的内容。批量抓取知乎违反 ToS 且有账号风险。
 - **ToS 提示**：用登录态读取内容严格说违反知乎服务协议。只读自己可见内容、不批量、
   不商用，实际风险低，但用户应知晓这点。
-- 跨平台限制见 `../kg-browser/references/troubleshooting.md`（WSL 需额外配置，
+- 跨平台限制见 `../../../kg-browser/references/troubleshooting.md`（WSL 需额外配置，
   配不通有手动降级方案）。

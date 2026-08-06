@@ -1,8 +1,3 @@
----
-name: kg-xiaoyuzhou
-description: 小宇宙播客单集摄入：解析元信息和 shownotes（含时间戳大纲，零成本白拿），可选下载音频用本地 ASR 转写逐字稿，存入 raw/ 后由 AI 解析并按 LLM Wiki 契约沉淀。当用户给出小宇宙链接（xiaoyuzhoufm.com/episode/...）、说「解析这集播客」「把这个播客存进知识库」「这期讲了什么」时使用。转写委托底层库 kg-media-to-text。不负责 B站视频（走 kg-bilibili）、公众号（走 kg-wechat）、本地文档（走 kg-doc）。
----
-
 # kg-xiaoyuzhou · 小宇宙播客消化
 
 把用户想听但没时间听的播客，转成可读文字，AI 解析后按 `AGENTS.md` 沉淀进 `wiki/`。
@@ -32,14 +27,14 @@ description: 小宇宙播客单集摄入：解析元信息和 shownotes（含时
 
 ```bash
 # 路径相对本 SKILL.md 所在目录（AI 会自动解析成绝对路径）
-source ../.venv/bin/activate
+source ../../../.venv/bin/activate
 ```
 
 > **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
 > `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
 >
-> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
+> 嫌麻烦可用 `../../../bin/kg-py`，它自己找环境，无需激活也无需 cd：
+> `../../../bin/kg-py kg-ingest/references/xiaoyuzhou/<脚本>.py [参数]`
 
 ## 用法
 
@@ -77,7 +72,7 @@ python scripts/ingest_episode.py "<链接>" --transcribe --hotword Connect --hot
 ```
 
 **为什么人名要单独传**：实测人名必须出现在"我是…"句式里才纠得对，
-堆进词表列表无效（原理见 `../kg-media-to-text/SKILL.md`）。实测 EP81
+堆进词表列表无效（原理见 `../../../kg-media-to-text/SKILL.md`）。实测 EP81
 开头 100 秒专名命中从 3/6 → 4/6，"携隐"由"显影"纠正。
 
 **收益边界**：只救事先知道的词。讲到一半才出现的低频专名（金缮→金扇）救不了，
