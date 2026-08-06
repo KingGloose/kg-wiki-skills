@@ -23,3 +23,6 @@ qrcode.png
 .DS_Store
 **/.DS_Store
 .pi-subagents/
+
+# 各 skill 的运行时状态与凭据（token / 缓存 / 游标）
+**/.state/
