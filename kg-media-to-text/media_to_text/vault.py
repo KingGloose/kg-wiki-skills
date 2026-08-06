@@ -18,7 +18,10 @@ import json
 import os
 from pathlib import Path
 
-CONFIG_PATH = Path.home() / ".config" / "kg-wiki" / "config.json"
+# 统一配置目录。KG_AGENT_CONFIG_DIR 可覆盖（测试用）。
+_CFG_DIR = Path(os.environ.get("KG_AGENT_CONFIG_DIR",
+                               Path.home() / ".kg-agent-config"))
+CONFIG_PATH = _CFG_DIR / "config.json"
 _MARKERS_REQUIRED = ("AGENTS.md",)
 _MARKERS_DIR = ("wiki",)
 
@@ -65,7 +68,22 @@ def _from_config() -> Path | None:
     except (json.JSONDecodeError, OSError):
         return None
 
-    # 多库格式
+    # 新格式（分域）：{"vault": {"default": "x", "paths": {...}}}
+    vnode = data.get("vault")
+    if isinstance(vnode, dict) and isinstance(vnode.get("paths"), dict):
+        paths = vnode["paths"]
+        name = vnode.get("default")
+        if name:
+            v = paths.get(name)
+            if not v:
+                raise VaultNotFoundError(f"配置的默认库 '{name}' 不存在。")
+            return Path(v).expanduser()
+        if len(paths) == 1:
+            return Path(next(iter(paths.values()))).expanduser()
+        raise VaultNotFoundError(
+            f"配置里有多个库但没设 default：{list(paths)}")
+
+    # 多库格式（旧）
     vaults = data.get("vaults")
     if isinstance(vaults, dict) and vaults:
         name = data.get("default")
@@ -118,6 +136,10 @@ def list_vaults() -> dict[str, str]:
     except (json.JSONDecodeError, OSError):
         return {}
     out = {}
+    vnode = data.get("vault")
+    if isinstance(vnode, dict) and isinstance(vnode.get("paths"), dict):
+        out.update({k: str(v) for k, v in vnode["paths"].items()})
+        return out
     if isinstance(data.get("vaults"), dict):
         out.update({k: str(v) for k, v in data["vaults"].items()})
     if data.get("vault"):

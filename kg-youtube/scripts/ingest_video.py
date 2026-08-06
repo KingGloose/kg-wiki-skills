@@ -26,7 +26,7 @@ import tempfile
 from datetime import datetime
 from pathlib import Path
 
-# 库根：优先 KG_VAULT 环境变量 / ~/.config/kg-wiki/config.json，
+# 库根：优先 KG_VAULT 环境变量 / ~/.kg-agent-config/config.json，
 # 否则从 cwd 或本文件位置向上找（含 AGENTS.md + wiki/ 的目录）
 from media_to_text import find_vault, VaultNotFoundError
 REPO_ROOT = None  # 在 main() 里按 --vault 解析

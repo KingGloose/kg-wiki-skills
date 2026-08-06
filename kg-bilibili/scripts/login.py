@@ -9,6 +9,7 @@
 """
 import asyncio
 import os
+import pathlib
 import sys
 import time
 from pathlib import Path
@@ -24,15 +25,31 @@ def write_env(cred):
     buvid3 = cookies.get("buvid3", "")
     dedeuserid = cookies.get("DedeUserID", "")
 
-    lines = [
-        "# 由 login.py 扫码登录自动生成。SESSDATA 有效期约一个月，过期重新扫码即可。",
-        f"SESSDATA={sessdata}",
-        f"BILI_JCT={bili_jct}",
-        f"BUVID3={buvid3}",
-        f"DEDEUSERID={dedeuserid}",
-        "",
-    ]
-    ENV_PATH.write_text("\n".join(lines), encoding="utf-8")
+    # 写进统一凭据文件（原子写，避免写一半崩掉丢掉其他凭据）
+    import json, os, tempfile
+    cfg_dir = pathlib.Path(os.environ.get(
+        "KG_AGENT_CONFIG_DIR", pathlib.Path.home() / ".kg-agent-config"))
+    cfg_dir.mkdir(parents=True, exist_ok=True)
+    cred_file = cfg_dir / "credentials.json"
+    data = {}
+    if cred_file.is_file():
+        try:
+            data = json.loads(cred_file.read_text(encoding="utf-8"))
+        except ValueError:
+            pass          # 坏文件不覆盖用户其他凭据，交由下面报错
+    data["bilibili"] = {
+        "//": "由 kg-bilibili/scripts/login.py 扫码登录写入。SESSDATA 约一个月过期。",
+        "SESSDATA": sessdata,
+        "BILI_JCT": bili_jct,
+        "BUVID3": buvid3,
+        "DEDEUSERID": dedeuserid,
+    }
+    tmp = cred_file.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n",
+                   encoding="utf-8")
+    tmp.chmod(0o600)
+    tmp.replace(cred_file)
+    eprint(f"[ok] cookie 已写入 {cred_file}")
     return sessdata
 
 

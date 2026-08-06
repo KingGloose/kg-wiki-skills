@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""学习笔记库健康检查：找出知识网的断点与账目不一致。
+"""kg-llm-wiki 库健康检查：找出知识网的断点与账目不一致。
 
 用法:
   python lint_vault.py              # 全部检查，人类可读报告

@@ -1,5 +1,7 @@
 """公共工具：加载 cookie、构造 Credential。跨平台（Mac/WSL/Windows）通用。"""
 import os
+import json
+import pathlib
 import sys
 from pathlib import Path
 
@@ -19,23 +21,37 @@ def select_http_client():
 
 
 def load_credential():
-    """从 skill 目录下的 .env 读取 cookie，返回 bilibili_api.Credential。
+    """读 B 站 cookie，返回 bilibili_api.Credential。
 
-    .env 需包含 SESSDATA（必填）、BILI_JCT、BUVID3。
+    凭据统一放 ~/.kg-agent-config/credentials.json 的 bilibili 段：
+        "bilibili": {"SESSDATA": "...", "BILI_JCT": "...", "BUVID3": "..."}
+
+    为什么不再用 skill 目录下的 .env：凭据散在各 skill 里既难找也容易
+    误提交，统一到 home 下的配置目录后物理上不可能被 git 带走。
     """
-    from dotenv import dotenv_values
     from bilibili_api import Credential
 
-    if not ENV_PATH.exists():
-        sys.exit(
-            f"[错误] 未找到 {ENV_PATH}\n"
-            f"请复制 .env.example 为 .env 并填入浏览器里的 B 站 cookie（SESSDATA 等）。"
-        )
+    cfg_dir = pathlib.Path(os.environ.get("KG_AGENT_CONFIG_DIR",
+                                          pathlib.Path.home() / ".kg-agent-config"))
+    cred_file = cfg_dir / "credentials.json"
+    cfg = {}
+    if cred_file.is_file():
+        try:
+            cfg = (json.loads(cred_file.read_text(encoding="utf-8"))
+                   .get("bilibili") or {})
+        except ValueError as e:
+            sys.exit(f"[错误] {cred_file} 不是合法 JSON：{e}")
 
-    cfg = dotenv_values(ENV_PATH)
-    sessdata = (cfg.get("SESSDATA") or "").strip()
+    # 兼容：环境变量可临时覆盖
+    sessdata = (os.environ.get("BILI_SESSDATA")
+                or cfg.get("SESSDATA") or "").strip()
     if not sessdata:
-        sys.exit("[错误] .env 里 SESSDATA 为空。请从浏览器 F12 → Application → Cookies → bilibili.com 复制。")
+        sys.exit(
+            f"[错误] 没有 B 站 SESSDATA。\n"
+            f"  在 {cred_file} 里加：\n"
+            f'    "bilibili": {{"SESSDATA": "...", "BILI_JCT": "...", "BUVID3": "..."}}\n'
+            f"  值从浏览器 F12 → Application → Cookies → bilibili.com 复制，\n"
+            f"  或跑 login.py 扫码登录。")
 
     return Credential(
         sessdata=sessdata,

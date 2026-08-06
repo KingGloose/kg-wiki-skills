@@ -5,7 +5,7 @@
 本 skill 只管：注册路径、切换默认、告诉别人当前用哪个。
 
 所有其他 kg-* skill 都靠这里的配置定位知识库。配置在
-`~/.config/kg-wiki/config.json`。
+`~/.kg-agent-config/config.json`。
 
 用法:
   python vault_cli.py which                    # 当前会用哪个库（AI 拿不准时先跑这个）
@@ -21,12 +21,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
 from media_to_text import find_vault, VaultNotFoundError
 
-CONFIG_PATH = Path.home() / ".config" / "kg-wiki" / "config.json"
+CONFIG_PATH = Path(os.environ.get("KG_AGENT_CONFIG_DIR",
+                                  Path.home() / ".kg-agent-config")) / "config.json"
 # 判断"是否知识库"用的标记（只读检查，不负责创建——创建归 kg-init）
 VAULT_DIRS = ("wiki", "raw", "assets")
 VAULT_FILES = ("AGENTS.md", "index.md", "log.md")

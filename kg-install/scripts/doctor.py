@@ -195,7 +195,7 @@ def probe_venv() -> dict:
 def probe_vault() -> dict:
     """知识库定位 —— 装好了但不知道往哪写,等于没装。"""
     info = {"env_KG_VAULT": os.environ.get("KG_VAULT"),
-            "config_path": str(Path.home() / ".config/kg-wiki/config.json")}
+            "config_path": str(Path.home() / ".kg-agent-config/config.json")}
     cfg = Path(info["config_path"])
     info["config_exists"] = cfg.is_file()
     if info["config_exists"]:
