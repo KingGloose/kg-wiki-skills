@@ -58,6 +58,16 @@ def iter_md() -> list[Path]:
         d = VAULT / sub
         if d.is_dir():
             out.extend(d.rglob("*.md"))
+    # 素材转写稿/文档 md（daily/<date>/assets/）：录音转文字、文档转 md，
+    # 也是可搜索的内容（用户发来的素材里可能有值得查的东西）
+    daily_assets = VAULT / "daily"
+    if daily_assets.is_dir():
+        for day in daily_assets.iterdir():
+            if not day.is_dir():
+                continue
+            ad = day / "assets"
+            if ad.is_dir():
+                out.extend(ad.rglob("*.md"))
     for f in ("index.md", "log.md", "AGENTS.md"):
         p = VAULT / f
         if p.is_file():
