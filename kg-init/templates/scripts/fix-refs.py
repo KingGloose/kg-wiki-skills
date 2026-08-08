@@ -13,6 +13,7 @@
 用法:
   python3 scripts/fix-refs.py              # 就地改写
   python3 scripts/fix-refs.py --dry-run    # 只报告不落盘
+  python3 scripts/fix-refs.py --files0     # NUL 分隔输出会受影响的文件，不改文件
 """
 from __future__ import annotations
 
@@ -24,7 +25,7 @@ from collections import defaultdict
 from urllib.parse import quote, unquote
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MAP_FILE = os.path.join(REPO, '.compress-map.tsv')
+MAP_FILE = os.environ.get('KG_COMPRESS_MAP', os.path.join(REPO, '.compress-map.tsv'))
 TEXT_EXT = {'.md', '.canvas'}
 SKIP_DIRS = {'.git', 'node_modules', '.trash', '.obsidian', '.venv'}
 
@@ -135,11 +136,14 @@ def process(path: str, by_base, dry: bool) -> int:
 
 
 def main() -> None:
-    dry = '--dry-run' in sys.argv
+    files0 = '--files0' in sys.argv
+    dry = '--dry-run' in sys.argv or files0
     by_base = load_map()
-    print(f'映射表 {sum(len(v) for v in by_base.values())} 条')
+    if not files0:
+        print(f'映射表 {sum(len(v) for v in by_base.values())} 条')
 
     total_refs = total_files = 0
+    affected = []
     for root, dirs, files in os.walk(REPO):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         for name in files:
@@ -150,8 +154,17 @@ def main() -> None:
             if n:
                 total_refs += n
                 total_files += 1
-                print(f'  {n:4d}  {os.path.relpath(p, REPO)}')
+                rel = os.path.relpath(p, REPO)
+                affected.append(rel)
+                if not files0:
+                    print(f'  {n:4d}  {rel}')
 
+    if files0:
+        sys.stdout.buffer.write(b'\0'.join(
+            p.encode('utf-8', 'surrogateescape') for p in affected))
+        if affected:
+            sys.stdout.buffer.write(b'\0')
+        return
     print(f'\n{"[dry-run] " if dry else ""}改写 {total_refs} 处引用，涉及 {total_files} 个文件')
 
 

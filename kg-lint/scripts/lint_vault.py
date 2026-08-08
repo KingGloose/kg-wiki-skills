@@ -153,7 +153,8 @@ def collect_links() -> tuple[dict[str, list[tuple[str, str]]], list[dict]]:
                 try:
                     if WIKI in resolved.parents:
                         k = page_key(resolved)
-                        inbound.setdefault(k, []).append((page_key(p), target))
+                        if k != page_key(p):
+                            inbound.setdefault(k, []).append((page_key(p), target))
                 except Exception:
                     pass
     return inbound, dead
@@ -282,25 +283,27 @@ def check_image() -> list[dict]:
     早期六项检查全是文字层面的，结果某真实库悄悄涨到 2.6 GB（.git 1.6 GB）
     都没人报警，clone 一次要十几分钟。
 
-    四个子项：
+    六个子项：
       orphan_image  磁盘上有、但没任何 md/canvas 引用
       dead_image    md 引用了、但磁盘上找不到
+      ambiguous_image 同名图片导致引用目标不明确
       big_image     单张超阈值
       uncompressed  非 WebP 且超 100KB（小图转 WebP 反而变大，不报）
       dup_image     内容完全相同
     """
     images = list(_walk_files(IMG_EXT))
-    if not images:
-        return []
 
-    # basename 建索引：md 里的引用路径写法五花八门（相对/绝对/仅文件名/URL编码），
-    # 而图片 basename 基本唯一，按 basename 匹最稳。
-    on_disk: dict[str, Path] = {}
+    # 路径引用优先精确匹配；只有 basename 唯一时才允许退化为文件名匹配。
+    # 同名图片不能静默折叠，否则会隐藏孤儿图或把错误路径误判为有效。
+    by_path: dict[str, Path] = {}
+    by_name: dict[str, list[Path]] = defaultdict(list)
     for p in images:
-        on_disk.setdefault(_nfc(p.name).lower(), p)
+        by_path[_nfc(str(p.resolve())).casefold()] = p
+        by_name[_nfc(p.name).casefold()].append(p)
 
-    referenced: set[str] = set()
+    referenced: set[Path] = set()
     dead: list[dict] = []
+    ambiguous: list[dict] = []
     for doc in _walk_files(DOC_EXT):
         try:
             text = doc.read_text(encoding="utf-8", errors="ignore")
@@ -313,11 +316,31 @@ def check_image() -> list[dict]:
                 if re.match(r"^[a-z]+://", ref, re.I):
                     continue
                 clean = _nfc(unquote(ref.split("|")[0].split("#")[0])).strip()
-                name = Path(clean).name.lower()
+                name = _nfc(Path(clean).name).casefold()
                 if not name or Path(name).suffix not in IMG_EXT:
                     continue
-                if name in on_disk:
-                    referenced.add(name)
+                exact = []
+                for candidate in (doc.parent / clean, VAULT / clean.lstrip("/")):
+                    key = _nfc(str(candidate.resolve())).casefold()
+                    if key in by_path:
+                        exact.append(by_path[key])
+                exact = list(dict.fromkeys(exact))
+                if exact:
+                    referenced.update(exact)
+                    continue
+
+                matches = by_name.get(name, [])
+                if len(matches) == 1:
+                    referenced.add(matches[0])
+                elif len(matches) > 1:
+                    # 不能判断真实目标时保守地保留所有候选，同时明确报警。
+                    referenced.update(matches)
+                    ambiguous.append({
+                        "kind": "ambiguous_image",
+                        "page": str(doc.relative_to(VAULT)),
+                        "ref": ref,
+                        "candidates": [str(p.relative_to(VAULT)) for p in matches],
+                    })
                 else:
                     dead.append({
                         "kind": "dead_image",
@@ -327,8 +350,8 @@ def check_image() -> list[dict]:
 
     out: list[dict] = []
 
-    for name, p in sorted(on_disk.items()):
-        if name not in referenced:
+    for p in sorted(images):
+        if p not in referenced:
             out.append({
                 "kind": "orphan_image",
                 "image": str(p.relative_to(VAULT)),
@@ -336,6 +359,7 @@ def check_image() -> list[dict]:
             })
 
     out.extend(dead)
+    out.extend(ambiguous)
 
     for p in images:
         size = p.stat().st_size
@@ -449,6 +473,7 @@ def main() -> int:
     img_labels = {
         "orphan_image": "孤儿图（无人引用）",
         "dead_image": "图片死链（引用了不存在的图）",
+        "ambiguous_image": "同名图片引用不明确",
         "big_image": f"超大图（>{BIG_IMAGE_KB}KB）",
         "uncompressed": f"未压缩（非 WebP 且 >{UNCOMPRESSED_MIN_KB}KB）",
         "dup_image": "重复图（内容相同）",
@@ -464,7 +489,7 @@ def main() -> int:
             grouped: dict[str, list[dict]] = defaultdict(list)
             for it in items:
                 grouped[it["kind"]].append(it)
-            for kind in ("orphan_image", "dead_image", "big_image",
+            for kind in ("orphan_image", "dead_image", "ambiguous_image", "big_image",
                          "uncompressed", "dup_image"):
                 sub = grouped.get(kind)
                 if not sub:
@@ -475,6 +500,9 @@ def main() -> int:
                 for it in sorted(sub, key=lambda x: -x.get("bytes", 0))[:8]:
                     if kind == "dead_image":
                         print(f"     · {it['page']}  →  {it['ref']}")
+                    elif kind == "ambiguous_image":
+                        print(f"     · {it['page']}  →  {it['ref']}"
+                              f"（{len(it['candidates'])} 个同名候选）")
                     elif kind == "dup_image":
                         print(f"     · {it['image']}  ({it['copies']} 份)")
                     else:

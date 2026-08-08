@@ -8,7 +8,7 @@
 #
 # 用法（在任意目录、任意 skill 下）：
 #   <本脚本路径> <脚本.py> [参数...]
-#   kg-py kg-bilibili/scripts/list_videos.py toview
+#   kg-py kg-ingest/references/bilibili/list_videos.py toview
 #
 # 相对路径按仓库根解析，绝对路径原样使用。
 

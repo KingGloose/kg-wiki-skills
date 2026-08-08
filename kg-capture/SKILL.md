@@ -23,7 +23,7 @@ description: 跨项目知识捕获：在任意项目里写代码、排查问题�
 
 1. 用户本次明确指定的路径
 2. 环境变量 `KG_VAULT`
-3. `~/.config/kg-wiki/config.json`
+3. `~/.kg-agent-config/config.json` 的 `vault` 分域
 4. 从当前工作目录向上查找（含 `AGENTS.md` + `wiki/` 的目录）
 
 用脚本确认：

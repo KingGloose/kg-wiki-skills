@@ -45,14 +45,19 @@ process_one() {
   dst="$dir/$stem.webp"
   reldst="${dst#$REPO_ROOT/}"
   orig=$(stat -f '%z' "$src" 2>/dev/null || echo 0)
+  if [[ $dst != "$src" ]]; then
+    dst=$(unique_webp_path "$src")
+    reldst="${dst#$REPO_ROOT/}"
+  fi
 
   # 已是 webp 且不超宽的，尝试重压；压不动就跳过
   if [[ $DRY_RUN == 1 ]]; then
-    local t; t=$(mktemp -u /tmp/cmXXXXXX).webp
+    local td t; td=$(mktemp -d); t="$td/preview.webp"
     if compress_one "$src" "$t"; then
-      new=$(stat -f '%z' "$t"); rm -f "$t"
+      new=$(stat -f '%z' "$t"); rm -rf "$td"
       printf 'OK\t%s\t%s\t%s\t%s\0' "$orig" "$new" "$rel" "$reldst"
     else
+      rm -rf "$td"
       printf 'SKIP\t%s\t%s\t%s\t%s\0' "$orig" "$orig" "$rel" "$rel"
     fi
     return
@@ -71,11 +76,6 @@ process_one() {
     return
   fi
 
-  # 目标名已被别的文件占用 -> 加后缀避让，绝不覆盖已有文件
-  if [[ -e $dst ]]; then
-    dst="$dir/${stem}-1.webp"; reldst="${dst#$REPO_ROOT/}"
-  fi
-
   if compress_one "$src" "$dst"; then
     new=$(stat -f '%z' "$dst")
     rm -f "$src"
@@ -84,7 +84,7 @@ process_one() {
     printf 'SKIP\t%s\t%s\t%s\t%s\0' "$orig" "$orig" "$rel" "$rel"
   fi
 }
-export -f process_one compress_one img_is_animated
+export -f process_one compress_one img_is_animated unique_webp_path
 export REPO_ROOT DRY_RUN WEBP_QUALITY MAX_WIDTH GIF_QUALITY GIF_MAX_WIDTH
 
 RESULTS=$(mktemp); trap 'rm -f "$LIST" "$RESULTS"' EXIT

@@ -7,7 +7,8 @@ description: 知识库路径管理——只解决「库在哪」这一个问题�
 
 **只管一件事：库在哪。** 其他 kg-* skill 要读写知识库，都得先知道路径——那个"哪"由这里管。
 
-配置在 `~/.config/kg-wiki/config.json`。
+配置在 `~/.kg-agent-config/config.json` 的 `vault` 分域；同一文件还可包含 Agent 的
+`collect` / `report` 等配置，`kg-vault` 写入时不会覆盖它们。
 
 ## 与 kg-init 的分工（别搞混）
 
@@ -80,18 +81,24 @@ python scripts/vault_cli.py remove <别名>               # 移除注册（不�
 
 ## 配置格式
 
-**多库（推荐，`kg-vault` 会自动升级成这个）**：
+**规范格式（单库、多库都用这一种）**：
 ```json
 {
-  "default": "personal",
-  "vaults": {
-    "personal": "/path/to/personal-vault",
-    "work": "/path/to/work-vault"
+  "version": 1,
+  "vault": {
+    "default": "personal",
+    "paths": {
+      "personal": "/path/to/personal-vault",
+      "work": "/path/to/work-vault"
+    }
   }
 }
 ```
 
-**单库（旧格式，仍兼容读取）**：
+旧的单库 `{"vault": "/path"}` 和顶层 `vaults/default` 格式仍兼容读取；
+下一次执行 `add/use/remove` 时会迁移到规范格式，同时保留其他配置分域。
+
+**旧单库示例**：
 ```json
 {"vault": "/path/to/vault"}
 ```

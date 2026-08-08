@@ -194,16 +194,25 @@ def probe_venv() -> dict:
 
 def probe_vault() -> dict:
     """知识库定位 —— 装好了但不知道往哪写,等于没装。"""
+    config_dir = Path(os.environ.get(
+        "KG_AGENT_CONFIG_DIR", Path.home() / ".kg-agent-config"))
     info = {"env_KG_VAULT": os.environ.get("KG_VAULT"),
-            "config_path": str(Path.home() / ".kg-agent-config/config.json")}
+            "config_path": str(config_dir / "config.json")}
     cfg = Path(info["config_path"])
     info["config_exists"] = cfg.is_file()
     if info["config_exists"]:
         try:
             data = json.loads(cfg.read_text(encoding="utf-8"))
-            info["config"] = data
-            info["registered"] = list(data.get("vaults", {}).keys()) or (
-                ["<单库格式>"] if data.get("vault") else [])
+            vnode = data.get("vault")
+            if isinstance(vnode, dict):
+                info["registered"] = list((vnode.get("paths") or {}).keys())
+                info["default"] = vnode.get("default")
+            elif isinstance(data.get("vaults"), dict):
+                info["registered"] = list(data["vaults"].keys())
+                info["default"] = data.get("default")
+            elif vnode:
+                info["registered"] = ["<旧单库格式>"]
+            info["config_version"] = data.get("version")
         except (json.JSONDecodeError, OSError) as e:
             info["config_error"] = str(e)
 

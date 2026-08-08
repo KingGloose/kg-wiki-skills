@@ -167,7 +167,7 @@ python scripts/plan.py archive <slug>          # 学完归档
 ```
 想学 X
  → kg-ask 查库(已知起点)  → kg-learn 学习会话
- → 需要资料 → kg-doc/kg-zhihu/kg-youtube 摄入
+ → 需要资料 → kg-doc / kg-ingest 摄入
  → 收尾 → 沉淀认知过程进 wiki → kg-lint 体检
  → 以后 kg-review 会挑出来回顾(重点问"还认同当时的判断吗")
 ```

@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import re
 import sys
 import tempfile
@@ -50,6 +51,21 @@ def sanitize(name: str) -> str:
     return name[:60] or "document"
 
 
+def web_out_path(url: str, title: str | None) -> Path:
+    date = datetime.now().strftime("%Y-%m-%d")
+    stem = sanitize(title or urlparse(url).netloc)
+    legacy = RAW_DIR / f"web-{date}-{stem}.md"
+    if legacy.is_file():
+        try:
+            if f"- 原文链接: {url}" in legacy.read_text(
+                    encoding="utf-8", errors="ignore")[:4096]:
+                return legacy
+        except OSError:
+            pass
+    digest = hashlib.sha256(url.encode("utf-8")).hexdigest()[:10]
+    return RAW_DIR / f"web-{date}-{stem}-{digest}.md"
+
+
 def is_url(s: str) -> bool:
     try:
         u = urlparse(s)
@@ -71,7 +87,7 @@ def fetch_webpage(url: str) -> tuple[str, str]:
         sys.exit(f"[错误] 网页抓取需要 base+wechat 依赖: {e}")
 
     if "mp.weixin.qq.com" in url:
-        eprint("[!] 这是微信公众号链接，建议改用 kg-wechat（有专门的图片防盗链处理）")
+        eprint("[!] 这是微信公众号链接，建议改用 kg-ingest（含公众号专用处理）")
 
     try:
         # allow_redirects：curl_cffi 默认不跟随重定向，很多博客有 /page → /page/ 的跳转
@@ -147,9 +163,7 @@ def ingest_url(url: str, args) -> int:
     if args.stdout:
         sys.stdout.write(content)
         return 0
-    out = Path(args.out).expanduser() if args.out else (
-        RAW_DIR / f"web-{datetime.now().strftime('%Y-%m-%d')}-{sanitize(title or urlparse(url).netloc)}.md"
-    )
+    out = Path(args.out).expanduser() if args.out else web_out_path(url, title)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(content, encoding="utf-8")
     eprint(f"[ok] 已写入 {out}")
@@ -181,7 +195,20 @@ def build_header(src: Path, result, title: str | None) -> str:
 
 
 def out_path_for(src: Path) -> Path:
-    return RAW_DIR / f"doc-{datetime.now().strftime('%Y-%m-%d')}-{sanitize(src.stem)}.md"
+    date = datetime.now().strftime("%Y-%m-%d")
+    legacy = RAW_DIR / f"doc-{date}-{sanitize(src.stem)}.md"
+    # 已有旧格式文件且来源相同，继续复用，避免升级后重复摄入。
+    if legacy.is_file():
+        try:
+            marker = f"- 原始路径: `{src}`"
+            if marker in legacy.read_text(encoding="utf-8", errors="ignore")[:4096]:
+                return legacy
+        except OSError:
+            pass
+    # 新文件始终带来源路径 hash：同名、不同扩展和不同子目录都不会碰撞。
+    source_key = str(src.expanduser().resolve())
+    digest = hashlib.sha256(source_key.encode("utf-8")).hexdigest()[:10]
+    return RAW_DIR / f"doc-{date}-{sanitize(src.stem)}-{digest}.md"
 
 
 def ingest_one(src: Path, args, quiet: bool = False) -> tuple[int, Path | None]:
@@ -248,7 +275,7 @@ def ingest_batch(folder: Path, args) -> int:
     eprint(f"\n[汇总] 成功 {len(ok)} | 跳过 {len(skipped)} | 失败 {len(failed)}")
     if failed:
         eprint("[失败清单] " + ", ".join(failed[:10]) + (" …" if len(failed) > 10 else ""))
-    return 0 if ok or skipped else 1
+    return 1 if failed else 0
 
 
 def main() -> int:
@@ -266,12 +293,14 @@ def main() -> int:
     args = ap.parse_args()
 
     global REPO_ROOT, RAW_DIR
-    try:
-        REPO_ROOT = find_vault(__file__, explicit=args.vault)
-    except VaultNotFoundError as e:
-        eprint(f"[错误] {e}")
-        return 2
-    RAW_DIR = REPO_ROOT / "raw"
+    # stdout 或显式 --out 不会写默认 raw/，无需强迫用户先配置知识库。
+    if not args.stdout and not args.out:
+        try:
+            REPO_ROOT = find_vault(__file__, explicit=args.vault)
+        except VaultNotFoundError as e:
+            eprint(f"[错误] {e}")
+            return 2
+        RAW_DIR = REPO_ROOT / "raw"
 
     # URL
     if is_url(args.path):

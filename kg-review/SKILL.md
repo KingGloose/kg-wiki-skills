@@ -80,7 +80,8 @@ kg-review 挑页 → 对话回顾 → 发现过时/要补 → 摄入新资料(kg
 ## 边界
 
 - **只挑 `wiki/`**，不回顾 `raw/`（那是原始留档）和 `archive/`（旧世界封存）。
-- 回顾记录存 `.review-log.json`（已 gitignore，各机器独立）。
+- 回顾记录按知识库路径分别存到 `~/.kg-agent-config/state/review-<vault-hash>.json`，
+  不写进 skill 安装目录，也不会在多个知识库之间串状态。
 - 不做强制排期/提醒——按 `AGENTS.md` 的「一切按需」，用户想回顾时才回顾，
   **不搞 Anki 那种打卡压力**。
 

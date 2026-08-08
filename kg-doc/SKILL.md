@@ -1,6 +1,6 @@
 ---
 name: kg-doc
-description: 把本地文档（PDF / Word / PPT / Excel / txt / md）、整个文件夹（批量）或普通网页 URL 解析成 Markdown 存入 raw/，再由 AI 解析并按 LLM Wiki 契约沉淀进知识库。当用户给出本地文档路径、文件夹、技术博客链接，说「把这个 PDF 存进知识库」「解析这份文档」「这个文件夹里的 PDF 都处理一下」「这篇博客存一下」时使用。转换委托底层库 kg-media-to-text（PDF 走 Docling 含 OCR、Office 走 MarkItDown）。不负责网页/公众号（走 kg-wechat）、B站视频（走 kg-bilibili）、播客（走 kg-xiaoyuzhou）。
+description: 把本地文档（PDF / Word / PPT / Excel / txt / md）、整个文件夹（批量）或普通网页 URL 解析成 Markdown 存入 raw/，再由 AI 解析并按 LLM Wiki 契约沉淀进知识库。当用户给出本地文档路径、文件夹、技术博客链接，说「把这个 PDF 存进知识库」「解析这份文档」「这个文件夹里的 PDF 都处理一下」「这篇博客存一下」时使用。转换委托底层库 kg-media-to-text（PDF 走 Docling 含 OCR、Office 走 MarkItDown）。不负责公众号、B站视频和播客（统一走 kg-ingest）。
 ---
 
 # kg-doc · 本地文档消化
@@ -60,7 +60,7 @@ python scripts/ingest_doc.py /path/to/x.docx --out /path/to/vault/raw/自定义.
 
 1. 用户给文档路径。
 2. **先预览判断价值**：`--stdout` 看内容，和用户讨论这文档值不值得沉淀、重点在哪。
-3. 决定沉淀 → 不带 `--stdout` 正式跑，产物落 `raw/doc-<日期>-<名>.md`（头部自带来源路径/类型/后端/页数/摄入日期做溯源）。
+3. 决定沉淀 → 不带 `--stdout` 正式跑，产物落 `raw/doc-<日期>-<名>-<来源路径短hash>.md`（头部自带来源路径/类型/后端/页数/摄入日期做溯源）。旧格式的同来源文件仍会复用，避免升级后重复摄入。
 4. 读 raw 内容做 AI 解析，按 `AGENTS.md` 判断：
    - 纯通用知识 → 只在 `index.md` 补唤醒关键词。
    - 有个人判断/项目上下文/踩坑/独特理解 → 写 `wiki/` 对应领域页，主动建双链 `[[...]]`。
@@ -75,8 +75,11 @@ python scripts/ingest_doc.py /path/to/x.docx --out /path/to/vault/raw/自定义.
 - **图片**：文档里的插图当前不提取（图片 OCR 属未实现的 L2 能力）。需要图时手动截图存 `assets/`。
 - 大文档（几十页以上）建议先 `--stdout | head` 抽查质量再全量落盘。
 - **批量前先单跑一个抽查质量**，别一次跑几十个才发现提取有问题。批量支持断点续传，中断后重跑会跳过已完成的。
+- 批量中任一文件失败都会返回非零退出码；成功路径仍逐行输出，调用方可以区分“全部完成”和“部分失败”。
+- `--stdout` 和显式 `--out` 不依赖知识库配置；只有写默认 `raw/` 时才解析 vault。
 - **网页提取是启发式的**（优先 `<article>`/`<main>`，否则取文字最多的容器），可能含残留导航或漏段，产物头部已标注提醒。JS 渲染的页面可能抓不到正文。
-- 公众号链接虽然也能抓，但**建议用 kg-wechat**（有图片防盗链处理和公众号专属元信息），脚本会给出提示。
+- 网页默认文件名同样带 URL 短 hash，标题相同的不同页面不会互相覆盖。
+- 公众号链接虽然也能抓，但**建议用 kg-ingest**（有公众号专属处理），脚本会给出提示。
 
 ## 已验证
 

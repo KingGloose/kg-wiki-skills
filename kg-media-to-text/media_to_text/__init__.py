@@ -10,7 +10,16 @@
 """
 from .router import to_text
 from .detect import detect_kind
-from .vault import find_vault, looks_like_vault, save_config, VaultNotFoundError
+from .vault import (
+    CONFIG_PATH,
+    VaultNotFoundError,
+    find_vault,
+    list_vaults,
+    load_vault_registry,
+    looks_like_vault,
+    save_config,
+    save_vault_registry,
+)
 from .hotwords import extract_hotwords
 from .imgcompress import (
     compress_image,
@@ -33,8 +42,12 @@ __all__ = [
     "to_text",
     "detect_kind",
     "find_vault",
+    "list_vaults",
+    "load_vault_registry",
     "looks_like_vault",
     "save_config",
+    "save_vault_registry",
+    "CONFIG_PATH",
     "VaultNotFoundError",
     "extract_hotwords",
     "compress_image",

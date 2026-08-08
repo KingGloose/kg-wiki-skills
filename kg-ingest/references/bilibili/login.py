@@ -38,7 +38,7 @@ def write_env(cred):
         except ValueError:
             pass          # 坏文件不覆盖用户其他凭据，交由下面报错
     data["bilibili"] = {
-        "//": "由 kg-bilibili/scripts/login.py 扫码登录写入。SESSDATA 约一个月过期。",
+        "//": "由 kg-ingest/references/bilibili/login.py 扫码登录写入。SESSDATA 约一个月过期。",
         "SESSDATA": sessdata,
         "BILI_JCT": bili_jct,
         "BUVID3": buvid3,

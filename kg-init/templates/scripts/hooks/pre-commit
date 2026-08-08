@@ -6,7 +6,7 @@
 #
 # 只处理本次暂存的图片，不扫全库，所以日常提交几乎无感。
 
-set -uo pipefail
+set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel)
 cd "$REPO_ROOT" || exit 1
@@ -21,9 +21,31 @@ STAGED=$(git diff --cached --name-only --diff-filter=AMR -z \
 
 [[ -z $STAGED ]] && exit 0
 
+# 钩子只能处理“暂存区和工作区内容一致”的图片。否则用工作区文件压缩会把
+# 用户尚未 git add 的版本带进提交，并删除原文件。
+while IFS= read -r rel; do
+  if [[ -f $rel ]] && ! git diff --quiet -- "$rel"; then
+    echo "[pre-commit] 拒绝处理：图片还有未暂存修改：$rel" >&2
+    echo "请先 git add 该图片，或用 git commit --no-verify 保留原格式。" >&2
+    exit 1
+  fi
+done <<< "$STAGED"
+
 echo "[pre-commit] 检测到新增图片，自动压缩为 WebP..."
 
-MAP=$(mktemp); trap 'rm -f "$MAP"' EXIT
+MAP=$(mktemp)
+AFFECTED=$(mktemp)
+completed=0
+refs_rewritten=0
+cleanup() {
+  if (( completed == 0 && refs_rewritten == 0 )) && [[ -s $MAP ]]; then
+    while IFS=$'\t' read -r _old new; do
+      [[ -n ${new:-} ]] && rm -f -- "$new"
+    done < "$MAP"
+  fi
+  rm -f "$MAP" "$AFFECTED"
+}
+trap cleanup EXIT
 saved_before=0
 saved_after=0
 converted=0
@@ -31,16 +53,21 @@ converted=0
 while IFS= read -r rel; do
   [[ -f $rel ]] || continue
   dir=$(dirname "$rel"); base=$(basename "$rel"); stem="${base%.*}"
-  dst="$dir/$stem.webp"
-  [[ -e $dst ]] && dst="$dir/${stem}-1.webp"
+  dst=$(unique_webp_path "$rel")
+  # 工作区里被删、但索引仍存在的目标也不能复用。
+  if git cat-file -e ":$dst" 2>/dev/null; then
+    dst_base="${dst%.webp}"; n=1
+    while [[ -e ${dst_base}-${n}.webp ]] || \
+          git cat-file -e ":${dst_base}-${n}.webp" 2>/dev/null; do
+      n=$((n + 1))
+    done
+    dst="${dst_base}-${n}.webp"
+  fi
 
   before=$(stat -f '%z' "$rel" 2>/dev/null || echo 0)
   if compress_one "$rel" "$dst"; then
     after=$(stat -f '%z' "$dst")
     printf '%s\t%s\n' "$rel" "$dst" >> "$MAP"
-    git rm -q --cached "$rel" 2>/dev/null || true
-    rm -f "$rel"
-    git add "$dst"
     saved_before=$((saved_before + before))
     saved_after=$((saved_after + after))
     converted=$((converted + 1))
@@ -53,17 +80,31 @@ if (( converted == 0 )); then
   exit 0
 fi
 
-# 改写引用并把受影响的 md 一起 stage，避免提交后图没了引用还指旧名
-cp "$MAP" .compress-map.tsv
-python3 scripts/fix-refs.py >/dev/null 2>&1 || true
-rm -f .compress-map.tsv
+# 先找出真正会被改引用的文档。若其中夹着未暂存或未跟踪内容就中止，
+# 避免 `git add` 把用户的其他笔记修改偷偷带进本次提交。
+KG_COMPRESS_MAP="$MAP" python3 scripts/fix-refs.py --files0 > "$AFFECTED"
+while IFS= read -r -d '' d; do
+  if ! git ls-files --error-unmatch -- "$d" >/dev/null 2>&1 || \
+     ! git diff --quiet -- "$d"; then
+    echo "[pre-commit] 图片引用位于有未暂存修改的文档：$d" >&2
+    echo "请先单独处理/暂存该文档，再重新提交。" >&2
+    exit 1
+  fi
+done < "$AFFECTED"
 
-CHANGED_DOCS=$(git diff --name-only -z -- '*.md' '*.canvas' | tr '\0' '\n' || true)
-if [[ -n $CHANGED_DOCS ]]; then
-  while IFS= read -r d; do
-    [[ -n $d ]] && git add "$d"
-  done <<< "$CHANGED_DOCS"
-fi
+KG_COMPRESS_MAP="$MAP" python3 scripts/fix-refs.py >/dev/null
+refs_rewritten=1
 
+# 引用更新成功后才删除原图，并且只暂存本次映射真正影响到的文档。
+while IFS=$'\t' read -r old new; do
+  git rm -q --cached -- "$old" 2>/dev/null || true
+  rm -f -- "$old"
+  git add -- "$new"
+done < "$MAP"
+while IFS= read -r -d '' d; do
+  git add -- "$d"
+done < "$AFFECTED"
+
+completed=1
 echo "[pre-commit] 压缩 $converted 张: $(human "$saved_before") -> $(human "$saved_after")"
 exit 0

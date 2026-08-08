@@ -21,7 +21,9 @@ Karpathy LLM Wiki 模式的隐含前提:知识要被**反复唤醒**才有价值
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
 import random
 import re
 import sys
@@ -34,13 +36,20 @@ from media_to_text import find_vault, VaultNotFoundError
 
 VAULT = None  # 在 main() 里按 --vault 解析
 WIKI = None  # 随 VAULT 在 main() 里初始化
-REVIEW_LOG = Path(__file__).resolve().parent.parent / ".review-log.json"
+REVIEW_LOG = None  # main() 按 vault 路径生成，避免多库串状态
 
 STRATEGIES = ("stale", "recent", "random", "orphanish")
 
 
 def eprint(*a, **k):
     print(*a, file=sys.stderr, **k)
+
+
+def review_log_path(vault: Path) -> Path:
+    digest = hashlib.sha256(str(vault.resolve()).encode("utf-8")).hexdigest()[:12]
+    state_root = Path(os.environ.get(
+        "KG_AGENT_CONFIG_DIR", Path.home() / ".kg-agent-config")) / "state"
+    return state_root / f"review-{digest}.json"
 
 
 def load_log() -> dict:
@@ -54,7 +63,9 @@ def load_log() -> dict:
 
 def save_log(log: dict) -> None:
     REVIEW_LOG.parent.mkdir(parents=True, exist_ok=True)
-    REVIEW_LOG.write_text(json.dumps(log, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp = REVIEW_LOG.with_suffix(".tmp")
+    tmp.write_text(json.dumps(log, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    tmp.replace(REVIEW_LOG)
 
 
 def pages(domain: str | None) -> list[Path]:
@@ -138,20 +149,25 @@ def main() -> int:
                     help="知识库路径（默认自动解析：KG_VAULT / 配置文件 / 向上查找）")
     args = ap.parse_args()
 
-    global VAULT, WIKI
+    global VAULT, WIKI, REVIEW_LOG
     try:
         VAULT = find_vault(__file__, explicit=args.vault)
     except VaultNotFoundError as exc:
         eprint(f"[错误] {exc}")
         return 2
     WIKI = VAULT / "wiki"
+    REVIEW_LOG = review_log_path(VAULT)
 
     log = load_log()
     reviews: dict = log["reviews"]
 
     # 标记已回顾
     if args.mark:
-        key = args.mark.replace("\\", "/")
+        target = (VAULT / args.mark).resolve()
+        if not target.is_file() or WIKI.resolve() not in target.parents:
+            eprint(f"[错误] --mark 必须是当前知识库 wiki/ 下已存在的文件: {args.mark}")
+            return 1
+        key = str(target.relative_to(VAULT.resolve())).replace("\\", "/")
         rec = reviews.setdefault(key, {"count": 0, "last": None})
         rec["count"] += 1
         rec["last"] = time.time()
@@ -164,7 +180,9 @@ def main() -> int:
         eprint(f"[错误] 没找到 wiki 页{'（领域: ' + args.domain + '）' if args.domain else ''}")
         return 1
 
-    all_text = "\n".join(p.read_text(encoding="utf-8", errors="ignore") for p in ps)
+    # 领域筛选只影响候选页，链入数仍统计整个 wiki 的来源。
+    all_text = "\n".join(
+        p.read_text(encoding="utf-8", errors="ignore") for p in pages(None))
 
     items = []
     for p in ps:

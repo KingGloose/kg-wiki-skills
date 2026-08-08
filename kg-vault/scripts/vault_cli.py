@@ -20,15 +20,17 @@
 from __future__ import annotations
 
 import argparse
-import json
-import os
 import sys
 from pathlib import Path
 
-from media_to_text import find_vault, VaultNotFoundError
-
-CONFIG_PATH = Path(os.environ.get("KG_AGENT_CONFIG_DIR",
-                                  Path.home() / ".kg-agent-config")) / "config.json"
+from media_to_text import (
+    CONFIG_PATH,
+    VaultNotFoundError,
+    find_vault,
+    load_vault_registry,
+    looks_like_vault,
+    save_vault_registry,
+)
 # 判断"是否知识库"用的标记（只读检查，不负责创建——创建归 kg-init）
 VAULT_DIRS = ("wiki", "raw", "assets")
 VAULT_FILES = ("AGENTS.md", "index.md", "log.md")
@@ -43,43 +45,9 @@ def eprint(*a, **k):
     print(*a, file=sys.stderr, **k)
 
 
-def looks_like_vault(p: Path) -> bool:
-    try:
-        return p.is_dir() and (p / "AGENTS.md").is_file() and (p / "wiki").is_dir()
-    except OSError:
-        return False
-
-
-def load_config() -> dict:
-    if not CONFIG_PATH.is_file():
-        return {}
-    try:
-        return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
-
-
-def save_config(data: dict) -> None:
-    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2),
-                           encoding="utf-8")
-
-
-def normalize(data: dict) -> dict:
-    """把旧的单库格式 {"vault": path} 升级成多库格式，保持兼容。"""
-    if "vaults" not in data:
-        data["vaults"] = {}
-    old = data.pop("vault", None)
-    if old and old not in data["vaults"].values():
-        data["vaults"]["default"] = old
-        data.setdefault("default", "default")
-    return data
-
-
 def all_vaults() -> tuple[dict[str, str], str | None]:
     """返回 (别名→路径, 默认别名)。"""
-    data = normalize(load_config())
-    return data.get("vaults", {}), data.get("default")
+    return load_vault_registry()
 
 
 def cmd_which(args) -> int:
@@ -113,17 +81,17 @@ def cmd_list(args) -> int:
 
 
 def _register(path: Path, name: str | None, *, created: bool) -> int:
-    data = normalize(load_config())
+    vaults, default = load_vault_registry()
     key = name or path.name
-    if key in data["vaults"] and data["vaults"][key] != str(path):
-        eprint(f"[错误] 别名 '{key}' 已被占用（指向 {data['vaults'][key]}）")
+    if key in vaults and vaults[key] != str(path):
+        eprint(f"[错误] 别名 '{key}' 已被占用（指向 {vaults[key]}）")
         eprint("       换个 --name，或先 remove 旧的")
         return EXIT_ERR
-    data["vaults"][key] = str(path)
-    save_config(data)
+    vaults[key] = str(path)
+    save_vault_registry(vaults, default)
     verb = "已创建并注册" if created else "已注册"
     print(f"✅ {verb} '{key}' → {path}")
-    if len(data["vaults"]) > 1 and not data.get("default"):
+    if len(vaults) > 1 and not default:
         print("   当前有多个库且未设默认；使用时需选择，或用 `use <别名>` 保存长期选择。")
     return EXIT_OK
 
@@ -167,29 +135,28 @@ def cmd_add(args) -> int:
 
 
 def cmd_use(args) -> int:
-    data = normalize(load_config())
-    if args.name not in data.get("vaults", {}):
-        eprint(f"[错误] 没有别名 '{args.name}'。现有：{', '.join(data.get('vaults', {})) or '(空)'}")
+    vaults, _ = load_vault_registry()
+    if args.name not in vaults:
+        eprint(f"[错误] 没有别名 '{args.name}'。现有：{', '.join(vaults) or '(空)'}")
         return EXIT_ERR
-    data["default"] = args.name
-    save_config(data)
-    print(f"✅ 默认库已切换为 '{args.name}' → {data['vaults'][args.name]}")
+    save_vault_registry(vaults, args.name)
+    print(f"✅ 默认库已切换为 '{args.name}' → {vaults[args.name]}")
     return EXIT_OK
 
 
 def cmd_remove(args) -> int:
-    data = normalize(load_config())
-    if args.name not in data.get("vaults", {}):
+    vaults, default = load_vault_registry()
+    if args.name not in vaults:
         eprint(f"[错误] 没有别名 '{args.name}'")
         return EXIT_ERR
-    path = data["vaults"].pop(args.name)
-    if data.get("default") == args.name:
-        data.pop("default", None)
-    save_config(data)
+    path = vaults.pop(args.name)
+    if default == args.name:
+        default = None
+    save_vault_registry(vaults, default)
     print(f"✅ 已移除注册 '{args.name}'（目录未删除：{path}）")
-    if data.get("default"):
-        print(f"   当前默认库：{data['default']}")
-    elif len(data["vaults"]) > 1:
+    if default:
+        print(f"   当前默认库：{default}")
+    elif len(vaults) > 1:
         print("   默认库已清除；下次使用时需要选择，或用 `use <别名>` 设置。")
     return EXIT_OK
 
@@ -252,11 +219,15 @@ def main() -> int:
     p_rm.add_argument("name")
 
     args = ap.parse_args()
-    return {
-        "which": cmd_which, "list": cmd_list, "init": cmd_init,
-        "add": cmd_add, "use": cmd_use, "remove": cmd_remove,
-        "doctor": cmd_doctor,
-    }[args.cmd](args)
+    try:
+        return {
+            "which": cmd_which, "list": cmd_list, "init": cmd_init,
+            "add": cmd_add, "use": cmd_use, "remove": cmd_remove,
+            "doctor": cmd_doctor,
+        }[args.cmd](args)
+    except (VaultNotFoundError, ValueError) as exc:
+        eprint(f"[错误] {exc}")
+        return EXIT_ERR
 
 
 if __name__ == "__main__":

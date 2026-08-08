@@ -62,14 +62,27 @@ def iter_md() -> list[Path]:
         p = VAULT / f
         if p.is_file():
             out.append(p)
-    return out
+    return sorted(out)
+
+
+def source_manifest(paths: list[Path] | None = None) -> dict[str, list[int]]:
+    """用路径集合、mtime_ns 和大小检测新增、修改与删除。"""
+    manifest = {}
+    for p in paths if paths is not None else iter_md():
+        try:
+            st = p.stat()
+        except OSError:
+            continue
+        manifest[str(p.relative_to(VAULT))] = [st.st_mtime_ns, st.st_size]
+    return manifest
 
 
 def build_index() -> dict:
     eprint("[..] 构建索引（只扫 md 文本，跳过图片）")
     t0 = time.time()
     docs = []
-    for p in iter_md():
+    paths = iter_md()
+    for p in paths:
         try:
             text = p.read_text(encoding="utf-8", errors="ignore")
         except OSError:
@@ -82,7 +95,8 @@ def build_index() -> dict:
             "text": text,
             "mtime": p.stat().st_mtime,
         })
-    idx = {"built_at": time.time(), "vault": str(VAULT), "docs": docs}
+    idx = {"built_at": time.time(), "vault": str(VAULT),
+           "manifest": source_manifest(paths), "docs": docs}
     INDEX_FILE.parent.mkdir(parents=True, exist_ok=True)
     INDEX_FILE.write_text(json.dumps(idx, ensure_ascii=False), encoding="utf-8")
     eprint(f"[ok] 索引 {len(docs)} 个文件，耗时 {time.time()-t0:.1f}s → {INDEX_FILE.name}")
@@ -100,9 +114,7 @@ def load_index(rebuild: bool = False) -> dict:
     if idx.get("vault") != str(VAULT):
         eprint("[i] 索引属于其他知识库，重建")
         return build_index()
-    # 有文件比索引新就重建（简单策略，够用）
-    newest = max((p.stat().st_mtime for p in iter_md()), default=0)
-    if newest > idx.get("built_at", 0):
+    if idx.get("manifest") != source_manifest():
         eprint("[i] 检测到文件变更，重建索引")
         return build_index()
     return idx

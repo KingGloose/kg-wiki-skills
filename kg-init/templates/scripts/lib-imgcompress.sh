@@ -28,6 +28,7 @@ img_is_animated() {
 # compress_one <源文件> <目标.webp>
 # 成功且更小 -> 写入目标, 返回 0
 # 压不动/失败 -> 不产出目标, 返回 1（调用方保留原图）
+# 目标必须不存在；用硬链接原子落位，绝不覆盖已有文件。
 compress_one() {
   local src=$1 dst=$2
   # 临时文件必须带 .webp 后缀：magick 靠扩展名推断输出格式，
@@ -69,8 +70,32 @@ compress_one() {
     return 1
   fi
 
-  mv -f "$tmp" "$dst"
-  return 0
+  if ln "$tmp" "$dst" 2>/dev/null; then
+    rm -f "$tmp"
+    return 0
+  fi
+  rm -f "$tmp"
+  return 1
+}
+
+# 为非 WebP 源文件选择不会碰撞的目标路径。常规情况仍用 stem.webp；
+# 被占用时加入来源路径校验值，不同扩展/并发任务不会争同一个 -1.webp。
+unique_webp_path() {
+  local src=$1 dir base stem candidate suffix n
+  dir=$(dirname "$src"); base=$(basename "$src"); stem="${base%.*}"
+  candidate="$dir/$stem.webp"
+  if [[ ! -e $candidate ]]; then
+    printf '%s\n' "$candidate"
+    return
+  fi
+  suffix=$(printf '%s' "$src" | cksum | awk '{print $1}')
+  candidate="$dir/${stem}-${suffix}.webp"
+  n=1
+  while [[ -e $candidate ]]; do
+    candidate="$dir/${stem}-${suffix}-${n}.webp"
+    n=$((n + 1))
+  done
+  printf '%s\n' "$candidate"
 }
 
 human() {

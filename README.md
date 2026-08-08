@@ -188,8 +188,8 @@ python scripts/xxx.py --vault /path/to/vault
 # 2. 环境变量
 export KG_VAULT=/path/to/your-vault
 
-# 3. 配置文件 ~/.config/kg-wiki/config.json
-{"vault": "/path/to/your-vault"}
+# 3. 配置文件 ~/.kg-agent-config/config.json
+{"version": 1, "vault": {"default": "personal", "paths": {"personal": "/path/to/your-vault"}}}
 
 # 4. 在知识库目录内执行（自动向上查找含 AGENTS.md + wiki/ 的目录）
 ```
@@ -198,10 +198,13 @@ export KG_VAULT=/path/to/your-vault
 
 ```json
 {
-  "default": "personal",
-  "vaults": {
-    "personal": "/path/to/personal-vault",
-    "work": "/path/to/work-vault"
+  "version": 1,
+  "vault": {
+    "default": "personal",
+    "paths": {
+      "personal": "/path/to/personal-vault",
+      "work": "/path/to/work-vault"
+    }
   }
 }
 ```
@@ -287,8 +290,8 @@ cd kg-vault && python scripts/vault_cli.py add /path/to/your-vault
 # 摄入
 cd kg-doc      && python scripts/ingest_doc.py ~/Downloads/paper.pdf
 cd kg-doc      && python scripts/ingest_doc.py ~/papers --batch
-cd kg-youtube  && python scripts/ingest_video.py "https://youtube.com/watch?v=xxx"
-cd kg-bilibili && python scripts/search_videos.py "Rust 异步" --order click --min-min 8
+python kg-ingest/references/youtube/ingest_video.py "https://youtube.com/watch?v=xxx"
+python kg-ingest/references/bilibili/search_videos.py "Rust 异步" --order click --min-min 8
 
 # 使用
 cd kg-ask    && python scripts/search_vault.py "泛域名 证书"
@@ -309,7 +312,7 @@ cd kg-lint   && python scripts/lint_vault.py
 - **说话人分离（diarization）** —— 需引入 gated model 与额外配置，多人对谈时逐字稿
   不标注发言人，但 SKILL.md 明确要求 AI **不确定就说不确定，不编造发言归属**
 - **原生多模态当主线** —— 每次付费无复利，见「分层摄入原则」
-- **小红书摄入** —— 签名逆向 + 频繁失效 + 账号风险，且笔记短图多，性价比低
+- **小红书搜索/收藏夹批量抓取** —— 非 SSR，需要真实浏览器登录态，按需走 `kg-browser`
 
 **刻意做了的：**
 
