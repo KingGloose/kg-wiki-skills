@@ -2,6 +2,7 @@
 """百度地图 Web 服务 API 封装。
 
 能力：
+  weather    天气查询(实时+7天预报+生活指数+预警)
   geocode    地名 → 经纬度(地理编码)
   reverse    经纬度 → 地名/周边(逆地理编码)
   search     关键词 + 区域/坐标 → POI 列表(地点检索, 支持评分/距离排序)
@@ -10,6 +11,7 @@
   driving    驾车路线规划
   walk       步行路线规划
   bike       骑行路线规划
+  navlink    生成百度地图导航跳转链接(飞书里点击直接导航)
 
 凭据：~/.kg-agent-config/credentials.json 的 baidu_map.ak（统一配置目录, 不进 git）。
 用法：
@@ -96,6 +98,100 @@ def fmt_poi(r):
 
 
 # ── 子命令实现 ──────────────────────────────────────────────
+
+COMMON_DISTRICTS = {
+    "110101": "东城区", "110102": "西城区", "110105": "朝阳区",
+    "110106": "丰台区", "110107": "石景山区", "110108": "海淀区",
+    "110109": "门头沟区", "110111": "房山区", "110112": "通州区",
+    "110113": "顺义区", "110114": "昌平区", "110115": "大兴区",
+    "110116": "怀柔区", "110117": "平谷区", "110118": "密云区",
+    "110119": "延庆区",
+    "310101": "黄浦区", "310104": "徐汇区", "310105": "长宁区",
+    "310106": "静安区", "310107": "普陀区", "310109": "虹口区",
+    "310110": "杨浦区", "310112": "闵行区", "310113": "宝山区",
+    "310114": "嘉定区", "310115": "浦东新区",
+    "440103": "荔湾区", "440104": "越秀区", "440106": "天河区",
+    "440105": "海珠区", "440111": "白云区", "440112": "黄埔区",
+    "440306": "宝安区", "440305": "南山区", "440304": "福田区",
+    "440303": "罗湖区",
+}
+
+CITY_EN_ZH = {
+    "beijing": "北京", "shanghai": "上海", "guangzhou": "广州",
+    "shenzhen": "深圳", "chengdu": "成都", "hangzhou": "杭州",
+    "wuhan": "武汉", "xian": "西安", "nanjing": "南京",
+    "tianjin": "天津", "chongqing": "重庆", "suzhou": "苏州",
+    "haidian": "海淀", "chaoyang": "朝阳", "dongcheng": "东城",
+    "xicheng": "西城", "pudong": "浦东", "changping": "昌平",
+}
+
+
+def resolve_district(city: str):
+    """城市名 → 区县编码（weather 接口需要 district_id）。"""
+    if city.isdigit() and len(city) >= 6:
+        return city[:6]
+    cn = CITY_EN_ZH.get(city.strip().lower())
+    if cn:
+        city = cn
+    for code, name in COMMON_DISTRICTS.items():
+        if city in name or name in city:
+            return code
+    d = check_status(http_get("/api_region_search/v1/", {
+        "keyword": city, "sub_admin": "1", "extensions_code": "1"}))
+    for dist in d.get("districts") or []:
+        subs = dist.get("districts") or []
+        if subs:
+            return subs[0].get("code", "")
+    return ""
+
+
+def cmd_weather(args):
+    district = args.district or resolve_district(args.city or "北京")
+    if not district:
+        sys.exit(f"[错误] 无法确定行政区划编码：{args.city}")
+    data_type = args.data or "all"
+    d = check_status(http_get("/weather/v1/", {
+        "district_id": district, "data_type": data_type}))
+    r = d.get("result") or {}
+    loc = r.get("location") or {}
+    parts = [p for p in [loc.get("province"), loc.get("city"), loc.get("name")] if p]
+    uniq = []
+    for p in parts:
+        if not uniq or uniq[-1] != p:
+            uniq.append(p)
+    print(f"📍 {''.join(uniq)}（{district}）")
+    now = r.get("now")
+    if now:
+        print(f"  现在: {now.get('text')} {now.get('temp')}°C 体感{now.get('feels_like')}°C "
+              f"湿度{now.get('rh')}% {now.get('wind_dir')}{now.get('wind_class')} "
+              f"AQI{now.get('aqi')} 紫外线{now.get('uvi')}")
+    for f in (r.get("forecasts") or [])[: args.days]:
+        print(f"  {f.get('date', '')} {f.get('text_day')}/{f.get('text_night')} "
+              f"{f.get('high')}°/{(f.get('low') or '')}° {f.get('wd_day', '')}")
+    for i in (r.get("indexes") or [])[: args.index_limit]:
+        print(f"  · {i.get('name')}: {i.get('brief')} — {i.get('detail', '')[:40]}")
+    for a in (r.get("alerts") or []):
+        print(f"  ⚠️ {a.get('title', '')}: {a.get('desc', '')[:60]}")
+
+
+def cmd_navlink(args):
+    dest = args.dest
+    if "," in dest and dest.replace(".", "").replace(",", "").replace("-", "").isdigit():
+        lng, lat = dest.split(",")
+        dest = f"latlng:{lat},{lng}|name:目的地"
+    params = {
+        "origin": args.origin or "我的位置",
+        "destination": dest,
+        "mode": args.mode,
+        "region": args.city,
+        "output": "html",
+        "src": "webapp.kgwiki.personal",
+    }
+    url = "http://api.map.baidu.com/direction?" + urllib.parse.urlencode(params)
+    print(url)
+    print(f"\n[提示] 手机/电脑浏览器打开此链接即可导航到 {args.dest}。"
+          f"（{args.mode} 方式，起点 {params['origin']}）")
+
 
 def cmd_geocode(args):
     d = check_status(http_get("/geocoding/v3/", {"address": args.address}))
@@ -240,6 +336,21 @@ def main():
         g.add_argument("dest", help="终点: 地名或 lng,lat")
         g.add_argument("--city", default="北京")
         g.set_defaults(fn=lambda a, m=mode: cmd_route(a, m))
+
+    g = sub.add_parser("weather", help="天气查询(实时+预报+指数+预警)")
+    g.add_argument("--city", help="城市名(中文/英文/区县编码)")
+    g.add_argument("--district", help="区县编码(6位, 如 110108)")
+    g.add_argument("--data", choices=["now", "fc", "index", "alert", "all"], default="all")
+    g.add_argument("--days", type=int, default=3)
+    g.add_argument("--index-limit", type=int, default=6)
+    g.set_defaults(fn=cmd_weather)
+
+    g = sub.add_parser("navlink", help="生成导航跳转链接")
+    g.add_argument("dest", help="目的地: 地名或 lng,lat")
+    g.add_argument("--origin", help="起点(默认我的位置)")
+    g.add_argument("--mode", default="transit", choices=["transit", "driving", "walking"])
+    g.add_argument("--city", default="北京")
+    g.set_defaults(fn=cmd_navlink)
 
     args = p.parse_args()
     args.fn(args)
