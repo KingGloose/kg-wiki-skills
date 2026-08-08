@@ -69,6 +69,7 @@ AI 时代，个人笔记的价值变了。
 | `kg-ask` | **库内检索问答**。索引全库文本，毫秒级查询，严格区分"库里记过的"vs"AI 补充的" |
 | `kg-review` | **知识回顾**：先回想再看答案，并确认页里的个人判断是否还认同 |
 | `kg-lint` | **库健康体检**：孤儿页、死链、raw 未沉淀、index 缺唤醒条目 |
+| `kg-travel` | **地图与出行**：百度地图 API——地理编码 / 地点检索 / 周边美食 / 公交驾车路线规划 |
 
 ---
 
@@ -275,6 +276,7 @@ cd ../kg-vault && python scripts/vault_cli.py add ~/my-vault    # 再注册
 | `kg-media-to-text`（转写） | `base` + `asr-mac` 或 `asr-linux` + ffmpeg |
 | `kg-doc` | `base` + `doc` |
 | `kg-browser` | 无 Python 依赖；需 `chrome-devtools-mcp` CLI |
+| `kg-travel` | 无额外依赖（纯标准库）；AK 在 `~/.kg-agent-config/credentials.json` |
 | `kg-install` / `kg-vault` / `kg-init` / `kg-ask` / `kg-lint` / `kg-review` / `kg-learn` / `kg-capture` | 无额外依赖（纯标准库） |
 
 ---
