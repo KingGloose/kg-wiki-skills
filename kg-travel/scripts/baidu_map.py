@@ -50,6 +50,9 @@ def load_ak():
 
 
 def http_get(path, params):
+    """带全局限流的 HTTP 请求。百度个人认证 QPS=3（账号级共享），
+    用文件锁强制请求间隔 ≥400ms，跨进程串行化防止打爆配额。"""
+    throttle_baidu()
     ak = load_ak()
     params = dict(params, output="json", ak=ak)
     url = f"{API}{path}?" + urllib.parse.urlencode(params)
@@ -58,6 +61,40 @@ def http_get(path, params):
             return json.loads(r.read().decode("utf-8"))
     except Exception as e:
         sys.exit(f"[错误] 请求失败：{e}")
+
+
+def throttle_baidu():
+    """跨进程令牌桶：两次请求之间至少间隔 BAIDU_MIN_INTERVAL 秒。"""
+    import fcntl
+    import time
+    cfg_dir = pathlib.Path(os.environ.get(
+        "KG_AGENT_CONFIG_DIR", pathlib.Path.home() / ".kg-agent-config"))
+    lock_path = cfg_dir / ".baidu_throttle.lock"
+    try:
+        cfg_dir.mkdir(parents=True, exist_ok=True)
+        lock_path.touch()
+    except OSError:
+        pass
+    min_interval = float(os.environ.get("BAIDU_MIN_INTERVAL", "0.4"))
+    try:
+        with open(lock_path, "r+") as f:
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                last = float(f.read().strip() or "0")
+            except ValueError:
+                last = 0.0
+            now = time.monotonic()
+            wait = last + min_interval - now
+            if wait > 0:
+                time.sleep(wait)
+                now = time.monotonic()
+            f.seek(0)
+            f.write(str(now))
+            f.truncate()
+            f.flush()
+            fcntl.flock(f, fcntl.LOCK_UN)
+    except OSError:
+        pass
 
 
 def check_status(d):
