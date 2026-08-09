@@ -83,11 +83,11 @@ def throttle_baidu():
                 last = float(f.read().strip() or "0")
             except ValueError:
                 last = 0.0
-            now = time.monotonic()
+            now = time.time()
             wait = last + min_interval - now
             if wait > 0:
                 time.sleep(wait)
-                now = time.monotonic()
+                now = time.time()
             f.seek(0)
             f.write(str(now))
             f.truncate()
