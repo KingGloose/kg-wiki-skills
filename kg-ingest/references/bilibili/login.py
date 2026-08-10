@@ -87,17 +87,18 @@ async def run():
         await asyncio.sleep(2)
 
     cred = qr.get_credential()
-    sessdata = write_env(cred)
-    # 登录成功后删掉二维码图片
+    cookies = cred.get_cookies()
+    sessdata = (cookies.get("SESSDATA") or "").strip()
+    if not sessdata:
+        eprint("[x] 未拿到 SESSDATA（登录未成功），**不覆盖**现有 cookie。")
+        eprint("[x] 请重新运行 login.py 再试（可能上次确认晚了/二维码过期）。")
+        sys.exit(1)
+    write_env(cred)
+    eprint(f"[ok] 登录成功，cookie 已写入 {ENV_PATH}")
     try:
         (SKILL_DIR / "qrcode.png").unlink(missing_ok=True)
     except Exception:
         pass
-    if sessdata:
-        eprint(f"[ok] 登录成功，cookie 已写入 {ENV_PATH}")
-    else:
-        eprint("[x] 登录疑似失败：未拿到 SESSDATA")
-        sys.exit(1)
 
 
 if __name__ == "__main__":
