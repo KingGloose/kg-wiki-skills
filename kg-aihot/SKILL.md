@@ -1,6 +1,9 @@
-# kg-aihot · AI 圈资讯
-
+---
+name: kg-aihot
 description: 查询 AIHOT 的中文 AI 资讯——AI 圈今天/本周发生什么（模型发布、产品动态、AI 论文、AI 日报）。当用户问「AI 圈今天有什么」「最近有什么大模型发布」「AI 日报」时使用。匿名只读 API，无需 Key。
+---
+
+# kg-aihot · AI 圈资讯
 
 ## 来源
 

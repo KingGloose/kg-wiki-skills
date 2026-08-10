@@ -73,6 +73,17 @@ class VaultConfigTests(unittest.TestCase):
 
 
 class ToolRegressionTests(unittest.TestCase):
+    def test_skill_lint_rejects_missing_frontmatter(self):
+        lint = load_module("skill_docs_lint_test", "kg-install/scripts/lint_docs.py")
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            skill = root / "kg-broken" / "SKILL.md"
+            skill.parent.mkdir()
+            skill.write_text("# Missing metadata\n", encoding="utf-8")
+            lint.REPO = root
+            issues = lint.check_skill(skill)
+            self.assertIn("missing-frontmatter", [issue["kind"] for issue in issues])
+
     def test_shell_image_target_never_reuses_an_existing_name(self):
         helper = REPO / "kg-init/templates/scripts/lib-imgcompress.sh"
         with tempfile.TemporaryDirectory() as td:

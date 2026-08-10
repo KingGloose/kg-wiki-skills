@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""检查各 SKILL.md 里的命令是否可被 AI 正确解析。
+"""检查各 SKILL.md 是否可被 Agent 发现，且命令能否被正确解析。
 
 为什么需要这个（真实故障复盘）：
   文档曾写死 `cd kg-wiki-skills && source .venv/bin/activate`。
@@ -61,6 +61,33 @@ def check_skill(path: Path) -> list[dict]:
     rel = str(path.relative_to(REPO))
     issues: list[dict] = []
 
+    if not text.startswith("---\n"):
+        issues.append({
+            "file": rel, "line": 1, "kind": "missing-frontmatter",
+            "severity": "error", "text": text.splitlines()[0] if text else "",
+            "why": "缺少 YAML frontmatter，Pi/Codex 不会发现这个 skill",
+            "fix": "在文件开头添加含 name 和 description 的 YAML frontmatter",
+        })
+    else:
+        end = text.find("\n---\n", 4)
+        frontmatter = text[4:end] if end >= 0 else ""
+        name = re.search(r"^name:\s*(\S+)\s*$", frontmatter, re.MULTILINE)
+        description = re.search(r"^description:\s*(.+)$", frontmatter, re.MULTILINE)
+        if end < 0 or not name or not description:
+            issues.append({
+                "file": rel, "line": 1, "kind": "invalid-frontmatter",
+                "severity": "error", "text": "YAML frontmatter",
+                "why": "frontmatter 必须完整包含非空的 name 和 description",
+                "fix": "按 Agent Skills 规范补全 name 和 description",
+            })
+        elif name.group(1) != path.parent.name:
+            issues.append({
+                "file": rel, "line": 2, "kind": "skill-name-mismatch",
+                "severity": "error", "text": name.group(1),
+                "why": f"skill 名称与目录名 {path.parent.name} 不一致",
+                "fix": f"把 name 改为 {path.parent.name}",
+            })
+
     # 文档正文里对变量的说明（用于判断 $VAR 有没有被解释）
     explained = set(re.findall(r'`\$\{?([A-Z][A-Z_]+)\}?`\s*[=＝]', text))
     explained |= set(re.findall(r'\$\{?([A-Z][A-Z_]+)\}?\s*(?:=|指|表示|就是)', text))
@@ -118,7 +145,7 @@ def check_skill(path: Path) -> list[dict]:
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="检查 SKILL.md 里的路径是否可被 AI 解析")
+    ap = argparse.ArgumentParser(description="检查 SKILL.md 的 frontmatter 和路径")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args()
 
@@ -133,9 +160,9 @@ def main() -> int:
                          ensure_ascii=False, indent=2))
         return 1 if errors else 0
 
-    print(f"# SKILL.md 路径检查\n\n检查了 {len(skills)} 个 skill")
+    print(f"# SKILL.md 发现与路径检查\n\n检查了 {len(skills)} 个 skill")
     if not all_issues:
-        print("\n✅ 没有发现问题 —— 所有命令都能被 AI 正确解析。")
+        print("\n✅ 没有发现问题 —— 所有 skill 都可发现，命令也能被 AI 正确解析。")
         print("\n（规范做法：文档用相对 SKILL.md 的路径，AI 会解析成绝对路径。")
         print("  这样不依赖软链名、不依赖工作目录。）")
         return 0
