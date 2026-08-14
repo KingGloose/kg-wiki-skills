@@ -102,15 +102,45 @@ def load_vault_registry() -> tuple[dict[str, str], str | None]:
     return {}, None
 
 
-def save_vault_registry(paths: dict[str, str], default: str | None) -> Path:
+def load_vault_descriptions() -> dict[str, str]:
+    """读取别名对应的用途描述；旧配置没有 descriptions 时返回空。"""
+    data = _read_config()
+    vnode = data.get("vault")
+    if not isinstance(vnode, dict):
+        return {}
+    descriptions = vnode.get("descriptions")
+    if not isinstance(descriptions, dict):
+        return {}
+    return {
+        str(key): value.strip()
+        for key, value in descriptions.items()
+        if isinstance(value, str) and value.strip()
+    }
+
+
+def save_vault_registry(paths: dict[str, str], default: str | None,
+                        descriptions: dict[str, str] | None = None) -> Path:
     """原子写入规范 vault 分域，同时保留 collect/report 等其他配置。"""
     clean = {str(k): str(Path(v).expanduser()) for k, v in paths.items()}
     if default is not None and default not in clean:
         raise ValueError(f"默认库 '{default}' 不在 paths 中")
 
     data = _read_config()
+    if descriptions is None:
+        vnode = data.get("vault")
+        raw_descriptions = vnode.get("descriptions") if isinstance(vnode, dict) else None
+        descriptions = raw_descriptions if isinstance(raw_descriptions, dict) else {}
+    clean_descriptions = {
+        str(key): value.strip()
+        for key, value in descriptions.items()
+        if str(key) in clean and isinstance(value, str) and value.strip()
+    }
     data.setdefault("version", 1)
-    data["vault"] = {"default": default, "paths": clean}
+    data["vault"] = {
+        "default": default,
+        "paths": clean,
+        "descriptions": clean_descriptions,
+    }
     # 只在写操作时迁移旧格式，避免同一份配置存在两个真相。
     data.pop("vaults", None)
     data.pop("default", None)
@@ -155,12 +185,15 @@ def _from_config() -> Path | None:
     if len(valid) == 1:
         return valid[0][1]
     if len(valid) > 1:
+        descriptions = load_vault_descriptions()
         raise VaultNotFoundError(
             "配置里有多个知识库但未指定默认：\n"
-            + "\n".join(f"  · {k}: {p}" for k, p in valid)
-            + "\n\n【给 AI 的指示】问用户这次要使用哪个库，然后："
-            "\n  临时：加 --vault <路径>"
-            "\n  长期：kg-vault/scripts/vault_cli.py use <别名>")
+            + "\n".join(
+                f"  · {k}: {p}"
+                + (f" — {descriptions[k]}" if descriptions.get(k) else "")
+                for k, p in valid)
+            + "\n\n【给 AI 的指示】运行 kg-vault list --json，按 desc 判断本次内容最适合的库，"
+            "然后给原命令显式加 --vault <路径>。不要仅因为有多个库就询问用户。")
     raise VaultNotFoundError("配置里的知识库路径都已失效，请询问用户新的路径。")
 
 

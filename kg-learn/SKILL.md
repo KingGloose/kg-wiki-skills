@@ -5,6 +5,9 @@ description: 学习模式：陪用户系统学习一个新领域。先查库确�
 
 # kg-learn · 学习模式
 
+多库时先运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，按学习主题和
+`desc` 自动选库，调用脚本显式传 `--vault <path>`；不要静默使用默认库或询问用户分类。
+
 陪用户从**不了解**到**能用**。核心不是把知识讲一遍，是让他真正搭起心智模型。
 
 ## 用户的真实痛点（本 skill 的设计依据）

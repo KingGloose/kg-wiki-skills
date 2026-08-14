@@ -56,6 +56,9 @@ references/<平台>/
 
 不管哪个平台，摄入都走这四步。**这几条比任何平台的技术细节都重要**：
 
+0. **先路由知识库。** 运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，
+   按 `desc` 判断本次内容最适合的库，后续检索和摄入都显式传 `--vault <path>`。
+   多库不询问用户，也不静默使用默认库。
 1. **先查重。** 用 `kg-ask` 看库里是否已有。重复沉淀会让知识库退化成
    搜索引擎缓存。
 2. **抓取扔 subagent。** 字幕、正文、OCR 吐字量大，在主会话里做会把上下文
@@ -77,5 +80,5 @@ references/<平台>/
 |---|---|
 | `ModuleNotFoundError` | 是不是没走 `kg-py`（依赖在仓库 venv 里，系统 python 是 3.9 且什么都没有） |
 | 凭据相关报错 | `~/.kg-agent-config/credentials.json` 里对应平台那段 |
-| 找不到知识库 | `~/.kg-agent-config/config.json` 的 `vault` 段 |
+| 找不到知识库 | 先用 `kg-vault list --json` 看 `path + desc`；未注册再检查配置 |
 | GitHub 相关超时 | 直连不通，脚本已内置代理，手工敲 `gh` 要自己带 `HTTPS_PROXY` |

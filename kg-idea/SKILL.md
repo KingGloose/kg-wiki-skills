@@ -36,8 +36,12 @@ xx 有关系吗"——他的思路就断了，而且可能因为答不上来就�
 
 ## 落盘
 
+先运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，按灵感主题与 `desc`
+自动选择库。多库时给下面命令在子命令前加 `--vault <path>`；不要使用默认库代替分类，
+也不要为选库打断用户。
+
 ```bash
-../bin/kg-py kg-idea/scripts/idea.py new "标题" \
+../bin/kg-py kg-idea/scripts/idea.py --vault <path> new "标题" \
   --body "用你的话把他的想法说清楚，一两段" \
   --topics "产品,AI" \
   --quote "他当时说的原话" \

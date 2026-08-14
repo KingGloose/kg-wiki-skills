@@ -5,6 +5,9 @@ description: 知识库健康检查（体检）：找出孤儿页、死链、raw 
 
 # kg-lint · 库健康检查
 
+多库时先运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，按当前沉淀主题和
+`desc` 自动选库，体检命令显式传 `--vault <path>`；若用户要全局体检则逐库运行。
+
 按 `AGENTS.md` 的「Lint（定期体检）」职责，找出知识网的断点与账目不一致。
 **只读、不自动修**——报告给用户，讨论后再动手。
 

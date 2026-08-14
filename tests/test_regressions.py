@@ -34,16 +34,35 @@ class VaultConfigTests(unittest.TestCase):
             vault.CONFIG_PATH = root / "config.json"
             vault.CONFIG_PATH.write_text(json.dumps({
                 "version": 1,
-                "vault": {"default": "one", "paths": {"one": str(one)}},
+                "vault": {
+                    "default": "one",
+                    "paths": {"one": str(one)},
+                    "descriptions": {"one": "技术与工程实践"},
+                },
                 "report": {"at": "09:30"},
             }), encoding="utf-8")
 
             self.assertEqual(vault._from_config(), one.resolve())
+            self.assertEqual(vault.load_vault_descriptions(), {"one": "技术与工程实践"})
             vault.save_vault_registry({"one": str(one)}, "one")
             saved = json.loads(vault.CONFIG_PATH.read_text(encoding="utf-8"))
             self.assertEqual(saved["report"], {"at": "09:30"})
             self.assertEqual(saved["vault"]["paths"], {"one": str(one)})
+            self.assertEqual(saved["vault"]["descriptions"], {"one": "技术与工程实践"})
             self.assertNotIn("vaults", saved)
+
+    def test_descriptions_are_filtered_with_removed_vaults(self):
+        vault = load_module("vault_desc_test", "kg-media-to-text/media_to_text/vault.py")
+        with tempfile.TemporaryDirectory() as td:
+            vault.CONFIG_PATH = Path(td) / "config.json"
+            vault.save_vault_registry(
+                {"tech": "/tmp/tech", "backend": "/tmp/backend"},
+                "tech",
+                {"tech": "通用技术", "backend": "后端工程"},
+            )
+            vault.save_vault_registry({"tech": "/tmp/tech"}, "tech")
+            saved = json.loads(vault.CONFIG_PATH.read_text(encoding="utf-8"))
+            self.assertEqual(saved["vault"]["descriptions"], {"tech": "通用技术"})
 
     def test_legacy_registry_is_migrated_only_when_written(self):
         vault = load_module("vault_legacy_test", "kg-media-to-text/media_to_text/vault.py")

@@ -9,17 +9,19 @@
 
 用法:
   python vault_cli.py which                    # 当前会用哪个库（AI 拿不准时先跑这个）
-  python vault_cli.py list                     # 列出已注册的库
-  python vault_cli.py add <路径> [--name 别名]   # 注册已有的知识库
+  python vault_cli.py list --json              # 列出库及 desc，供 AI 自动路由
+  python vault_cli.py add <路径> [--name 别名] [--desc 用途]
+  python vault_cli.py describe <别名> <用途>    # 更新用途描述
   python vault_cli.py use <别名>                # 切换默认库
   python vault_cli.py remove <别名>             # 移除注册（不删目录）
   python vault_cli.py doctor                   # 检查配置与各库健康
 
-退出码：0 正常；1 出错；2 需要询问用户（多库无默认 / 未配置）
+退出码：0 正常；1 出错；2 which 没有唯一结果（多库应改用 list --json 路由）
 """
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -27,6 +29,7 @@ from media_to_text import (
     CONFIG_PATH,
     VaultNotFoundError,
     find_vault,
+    load_vault_descriptions,
     load_vault_registry,
     looks_like_vault,
     save_vault_registry,
@@ -38,7 +41,7 @@ VAULT_FILES = ("AGENTS.md", "index.md", "log.md")
 # 退出码语义
 EXIT_OK = 0
 EXIT_ERR = 1
-EXIT_ASK_USER = 2
+EXIT_NO_UNIQUE_DEFAULT = 2
 
 
 def eprint(*a, **k):
@@ -56,11 +59,27 @@ def cmd_which(args) -> int:
         return EXIT_OK
     except VaultNotFoundError as exc:
         print(exc)
-        return EXIT_ASK_USER
+        return EXIT_NO_UNIQUE_DEFAULT
 
 
 def cmd_list(args) -> int:
     vaults, default = all_vaults()
+    descriptions = load_vault_descriptions()
+    if args.json:
+        print(json.dumps({
+            "default": default,
+            "vaults": [
+                {
+                    "name": name,
+                    "path": path,
+                    "desc": descriptions.get(name, ""),
+                    "default": name == default,
+                    "valid": looks_like_vault(Path(path)),
+                }
+                for name, path in vaults.items()
+            ],
+        }, ensure_ascii=False, indent=2))
+        return EXIT_OK
     if not vaults:
         print("未注册任何知识库。已有知识库用 `add` 注册；没有知识库先用 kg-init 创建。")
         return EXIT_OK
@@ -75,24 +94,29 @@ def cmd_list(args) -> int:
             n_wiki = len(list((p / "wiki").rglob("*.md"))) if (p / "wiki").is_dir() else 0
             extra = f"  ({n_wiki} 页 wiki)"
         print(f" {mark} {k:<14} {v}{extra}{status}")
+        if descriptions.get(k):
+            print(f"                    {descriptions[k]}")
     if default:
         print(f"\n★ = 默认库")
     return EXIT_OK
 
 
-def _register(path: Path, name: str | None, *, created: bool) -> int:
+def _register(path: Path, name: str | None, desc: str | None, *, created: bool) -> int:
     vaults, default = load_vault_registry()
+    descriptions = load_vault_descriptions()
     key = name or path.name
     if key in vaults and vaults[key] != str(path):
         eprint(f"[错误] 别名 '{key}' 已被占用（指向 {vaults[key]}）")
         eprint("       换个 --name，或先 remove 旧的")
         return EXIT_ERR
     vaults[key] = str(path)
-    save_vault_registry(vaults, default)
+    if desc is not None:
+        descriptions[key] = desc.strip()
+    save_vault_registry(vaults, default, descriptions)
     verb = "已创建并注册" if created else "已注册"
     print(f"✅ {verb} '{key}' → {path}")
     if len(vaults) > 1 and not default:
-        print("   当前有多个库且未设默认；使用时需选择，或用 `use <别名>` 保存长期选择。")
+        print("   当前有多个库；AI 会按 desc 自动选择并显式传 --vault。")
     return EXIT_OK
 
 
@@ -101,7 +125,7 @@ def cmd_init(args) -> int:
     path = Path(args.path).expanduser().resolve()
     if looks_like_vault(path):
         eprint(f"[i] {path} 已经是知识库，直接注册")
-        return _register(path, args.name, created=False)
+        return _register(path, args.name, args.desc, created=False)
 
     eprint(f"[错误] {path} 还不是知识库，本 skill 不负责创建。")
     eprint("")
@@ -131,7 +155,23 @@ def cmd_add(args) -> int:
         eprint(f"[错误] {path} 不像知识库（需要 AGENTS.md 和 wiki/ 目录）")
         eprint("       建库/改造旧笔记请先用 kg-init（有模板，会先出计划）,完成后再 add")
         return EXIT_ERR
-    return _register(path, args.name, created=False)
+    return _register(path, args.name, args.desc, created=False)
+
+
+def cmd_describe(args) -> int:
+    vaults, default = load_vault_registry()
+    if args.name not in vaults:
+        eprint(f"[错误] 没有别名 '{args.name}'。现有：{', '.join(vaults) or '(空)'}")
+        return EXIT_ERR
+    desc = args.desc.strip()
+    if not desc:
+        eprint("[错误] 用途描述不能为空")
+        return EXIT_ERR
+    descriptions = load_vault_descriptions()
+    descriptions[args.name] = desc
+    save_vault_registry(vaults, default, descriptions)
+    print(f"✅ 已更新 '{args.name}' 的用途描述：{descriptions[args.name]}")
+    return EXIT_OK
 
 
 def cmd_use(args) -> int:
@@ -146,18 +186,20 @@ def cmd_use(args) -> int:
 
 def cmd_remove(args) -> int:
     vaults, default = load_vault_registry()
+    descriptions = load_vault_descriptions()
     if args.name not in vaults:
         eprint(f"[错误] 没有别名 '{args.name}'")
         return EXIT_ERR
     path = vaults.pop(args.name)
+    descriptions.pop(args.name, None)
     if default == args.name:
         default = None
-    save_vault_registry(vaults, default)
+    save_vault_registry(vaults, default, descriptions)
     print(f"✅ 已移除注册 '{args.name}'（目录未删除：{path}）")
     if default:
         print(f"   当前默认库：{default}")
     elif len(vaults) > 1:
-        print("   默认库已清除；下次使用时需要选择，或用 `use <别名>` 设置。")
+        print("   默认库已清除；AI 仍会按 desc 自动选择目标库。")
     return EXIT_OK
 
 
@@ -173,6 +215,7 @@ def cmd_doctor(args) -> int:
         print("KG_VAULT: 未设置（正常，配置文件优先级足够）")
 
     vaults, default = all_vaults()
+    descriptions = load_vault_descriptions()
     print(f"\n## 已注册 {len(vaults)} 个库\n")
     problems = 0
     for k, v in vaults.items():
@@ -187,6 +230,9 @@ def cmd_doctor(args) -> int:
         n = len(list((p / "wiki").rglob("*.md")))
         print(f" {mark} {k}: {v}\n     ✅ {n} 页 wiki"
               + (f" | 建议补: {', '.join(missing)}" if missing else ""))
+        if len(vaults) > 1 and not descriptions.get(k):
+            print("     ⚠️  缺用途描述；用 describe 补充后 AI 路由会更准确")
+            problems += 1
         if missing:
             problems += 1
     if not vaults:
@@ -201,16 +247,23 @@ def main() -> int:
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("which", help="当前会用哪个库（AI 拿不准时先跑这个）")
-    sub.add_parser("list", help="列出已注册的库")
+    p_list = sub.add_parser("list", help="列出已注册的库及用途描述")
+    p_list.add_argument("--json", action="store_true", help="输出给 AI 路由用的 JSON")
     sub.add_parser("doctor", help="检查配置与各库健康")
 
     p_init = sub.add_parser("init", help="（已不建库）注册已有库；未建则引导去 kg-init")
     p_init.add_argument("path")
     p_init.add_argument("--name", default=None, help="别名（默认取目录名）")
+    p_init.add_argument("--desc", default=None, help="这个库收什么内容，供 AI 自动路由")
 
     p_add = sub.add_parser("add", help="注册已有的知识库目录")
     p_add.add_argument("path")
     p_add.add_argument("--name", default=None)
+    p_add.add_argument("--desc", default=None, help="这个库收什么内容，供 AI 自动路由")
+
+    p_desc = sub.add_parser("describe", help="设置知识库用途描述")
+    p_desc.add_argument("name")
+    p_desc.add_argument("desc")
 
     p_use = sub.add_parser("use", help="切换默认库")
     p_use.add_argument("name")
@@ -222,7 +275,7 @@ def main() -> int:
     try:
         return {
             "which": cmd_which, "list": cmd_list, "init": cmd_init,
-            "add": cmd_add, "use": cmd_use, "remove": cmd_remove,
+            "add": cmd_add, "describe": cmd_describe, "use": cmd_use, "remove": cmd_remove,
             "doctor": cmd_doctor,
         }[args.cmd](args)
     except (VaultNotFoundError, ValueError) as exc:

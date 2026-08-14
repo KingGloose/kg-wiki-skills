@@ -21,10 +21,14 @@ description: 库内检索与问答：给一个问题或关键词，检索 wiki �
 
 ## 用法
 
+多库先运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，根据问题主题与
+`desc` 自动选择最相关的库，并给检索命令显式加 `--vault <path>`。不要静默使用默认库，
+也不要仅因多库询问用户。
+
 ```bash
 source ../.venv/bin/activate
 
-python scripts/search_vault.py "泛域名 证书"           # 检索（自动建/更新索引）
+python scripts/search_vault.py "泛域名 证书" --vault <path>  # 检索（自动建/更新索引）
 python scripts/search_vault.py "Agent 架构" --scope wiki  # 只搜沉淀页，不含旧笔记
 python scripts/search_vault.py "xxx" --context 3        # 片段多给几行上下文
 python scripts/search_vault.py "xxx" --json             # 结构化输出

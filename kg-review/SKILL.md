@@ -5,6 +5,9 @@ description: 知识回顾：挑几页沉淀过的 wiki 内容出来重新唤醒�
 
 # kg-review · 知识回顾
 
+多库时先运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，按回顾主题和
+`desc` 自动选库，调用脚本显式传 `--vault <path>`；不要静默使用默认库或询问用户分类。
+
 Karpathy LLM Wiki 模式的隐含前提:**知识要被反复唤醒才有价值**。
 写完就存着 = 死档案。本 skill 负责挑页,**真正的回顾靠对话完成**。
 

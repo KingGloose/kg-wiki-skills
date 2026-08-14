@@ -58,6 +58,8 @@ python scripts/ingest_doc.py /path/to/x.docx --out /path/to/vault/raw/自定义.
 
 ## 工作流（遵守 AGENTS.md）
 
+0. 运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，按 `desc` 自动选库；
+   正式写入时显式传 `--vault <path>`，不要静默使用默认库，也不要为分类询问用户。
 1. 用户给文档路径。
 2. **先预览判断价值**：`--stdout` 看内容，和用户讨论这文档值不值得沉淀、重点在哪。
 3. 决定沉淀 → 不带 `--stdout` 正式跑，产物落 `raw/doc-<日期>-<名>-<来源路径短hash>.md`（头部自带来源路径/类型/后端/页数/摄入日期做溯源）。旧格式的同来源文件仍会复用，避免升级后重复摄入。

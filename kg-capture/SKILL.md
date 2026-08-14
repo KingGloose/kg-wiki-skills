@@ -26,14 +26,14 @@ description: 跨项目知识捕获：在任意项目里写代码、排查问题�
 3. `~/.kg-agent-config/config.json` 的 `vault` 分域
 4. 从当前工作目录向上查找（含 `AGENTS.md` + `wiki/` 的目录）
 
-用脚本确认：
+用脚本读取全部库及用途：
 
 ```bash
-../bin/kg-py kg-vault/scripts/vault_cli.py which
+../bin/kg-py kg-vault/scripts/vault_cli.py list --json
 ```
 
-只配置了一个有效库时直接使用；多个库已有默认时使用默认；多个库没有默认时必须询问用户，
-本次明确选择库，或通过 `kg-vault use <别名>` 保存长期选择。
+只配置了一个有效库时直接使用；多个库时根据本次结论主题与 `desc` 自动选择，
+并给后续检索/体检命令显式传 `--vault <path>`。不要静默使用默认库，也不要为分类询问用户。
 
 或直接用其他 skill 的脚本（它们都会解析库根并打印）。
 **动手前先确认库根下有 `AGENTS.md` 和 `wiki/`。**
@@ -80,7 +80,7 @@ description: 跨项目知识捕获：在任意项目里写代码、排查问题�
 **别急着写新页** —— 库里可能已经记过，或有该建双链的相关页：
 
 ```bash
-../bin/kg-py kg-ask/scripts/search_vault.py "<关键词>" --scope wiki
+../bin/kg-py kg-ask/scripts/search_vault.py "<关键词>" --scope wiki --vault <库根>
 ```
 
 > **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
