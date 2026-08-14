@@ -1,6 +1,7 @@
 # Python 虚拟环境
 .venv/
 **/.venv/
+.venv
 
 # 敏感凭证（如 B 站 SESSDATA）
 .env

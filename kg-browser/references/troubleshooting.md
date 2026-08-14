@@ -1,99 +1,36 @@
-# kg-browser 排查
+# Kimi WebBridge 排查
 
-## 连接失败
+## 守护进程未运行
 
-### `Network.enable timed out` / `Timeout waiting for daemon response`
-
-daemon 起来了但连不上 Chrome。最常见原因：**`DevToolsActivePort` 里的 WS UUID 已失效**。
-
-该文件在 `~/Library/Application Support/Google/Chrome/DevToolsActivePort`，两行：
-```
-53563                                              ← 端口
-/devtools/browser/319232b7-4e3b-...                ← WS UUID（Chrome 重启会变）
-```
-
-Chrome 重启后 UUID 变了但文件可能没更新（实测遇到过文件是几天前的）。
-排查：
-```bash
-ls -la "$HOME/Library/Application Support/Google/Chrome/DevToolsActivePort"   # 看时间戳
-lsof -nP -iTCP:<端口> -sTCP:LISTEN                                            # 确认是 Chrome 在听
-```
-
-**修复**：让用户在 `chrome://inspect/#remote-debugging` 勾选 Allow remote debugging，
-**彻底退出 Chrome（⌘Q，不是关窗口）**，重新打开。这会重写该文件。
-
-### `未找到 chrome-devtools 命令`
+`kimi-bridge.mjs` 遇到 `ECONNREFUSED` 会自动执行：
 
 ```bash
-npm i -g chrome-devtools-mcp@latest
+~/.kimi-webbridge/bin/kimi-webbridge start
 ```
 
-### CDP 的 HTTP 接口（`/json/version`）不响应
+仍无法连接时打开 [Kimi WebBridge 中文帮助](https://www.kimi.com/zh-cn/features/webbridge)。不要自动执行 `stop` / `restart` / `uninstall`，这些会中断其他正在使用浏览器的任务。
 
-正常现象，不用管。较新 Chrome 限制了 CDP 的 HTTP 端点，但 **WebSocket 端点仍可用**——
-连接脚本走的就是 WS，不依赖 HTTP 接口。别拿 `curl /json/version` 当连通性判据。
+## `no extension connected`
 
-### 连上了但 `list_pages` 是空的
+守护进程正常，但 Chrome 扩展未连接。请用户检查 Kimi WebBridge 扩展是否已启用，并在扩展界面完成连接。不要尝试导出 cookie 或改用隐藏浏览器。
 
-大概率连到了**隔离浏览器**而不是用户 Chrome。原因通常是：在 `connect-chrome.sh`
-成功之前就执行了 `chrome-devtools` 的页面命令，CLI 隐式启了个干净实例。
-`chrome-devtools stop` 后重新跑连接脚本。
+## 扩展版本过旧
 
-## 提取失败
+返回 `Please update the Kimi WebBridge extension` 时，让用户按帮助页更新扩展。不要由脚本自动升级。
 
-### 正文长度异常小 / 拿不到内容
+## 页面内容不完整
 
-按顺序排查：
-1. **页面真的加载完了吗** —— `evaluate_script "() => document.readyState"` 应为 `complete`
-2. **需要登录吗** —— 让用户在可见 Chrome 里看这页是否正常显示。**不要尝试绕过登录**
-3. **内容被折叠了吗** —— 知乎回答默认折叠，见 `site-selectors.md`
-4. **虚拟滚动/懒加载吗** —— Notion、语雀长文只渲染视口内容，需逐屏滚动
-5. **在 iframe 里吗** —— `list_pages` 看有没有子 frame
-6. **Shadow DOM 吗** —— 试 `el.shadowRoot.innerHTML`
+1. 用 `snapshot` 检查登录页、加载状态和折叠按钮。
+2. 页面变化后重新 snapshot；旧 `@e` 引用可能已失效。
+3. 长页用 `evaluate` 滚动后分段读取。
+4. 跨域 iframe 不能直接操作时，先取 iframe URL，再导航到该 URL。
+5. 某些站点要求真实用户输入，普通 click/fill 无效时让用户手动完成。
 
-### 选择器失效（站点改版）
+## 历史搜索失败
 
-用 SKILL.md 的"探选择器"片段按文字量重新找，找到后**更新 `site-selectors.md`**。
+- macOS 默认读 `~/Library/Application Support/Google/Chrome`。
+- Linux 默认读 `~/.config/google-chrome` / `chromium` / Edge。
+- Windows 默认读 `%LOCALAPPDATA%/Google/Chrome/User Data`。
+- WSL 会额外遍历 `/mnt/c/Users/*/AppData/Local/Google/Chrome/User Data`。
 
-### 输出太大刷屏
-
-**`--filePath` 有路径限制**（实测踩过）：daemon 带 `--no-allow-unrestricted-paths`，
-写 `/tmp` 或工作区外的路径会报
-`Access denied: path ... is not within any of the configured workspace roots`。
-
-稳妥做法是**直接取 stdout 再自己落盘**：
-
-```bash
-chrome-devtools evaluate_script "() => document.querySelector('...').outerHTML" \
-  | python3 -c "
-import sys, re, json, pathlib
-raw = sys.stdin.read()
-m = re.search(r'\`\`\`json\s*(.*?)\`\`\`', raw, re.S)
-html = json.loads(m.group(1).strip()) if m else raw
-pathlib.Path('/tmp/body.html').write_text(html, encoding='utf-8')
-print('saved', len(html), 'chars')
-"
-```
-
-CLI 的输出格式是 `Script ran on page and returned:` 后跟一个 ```json 代码块。
-
-## 跨平台
-
-### macOS
-
-直接可用（本 skill 主要在 macOS 上验证）。
-
-### WSL2 访问 Windows 侧 Chrome
-
-WSL 和 Windows 是不同网络命名空间，需要额外配置：
-1. Windows 上以调试端口启动 Chrome：
-   `chrome.exe --remote-debugging-port=9222`
-2. WSL 里连 Windows 主机：`$(hostname).local:9222` 或从 `/etc/resolv.conf` 拿 nameserver IP
-3. Chrome 默认只监听 `127.0.0.1`，跨命名空间可能连不上，可能需要端口转发
-   （`netsh interface portproxy`）
-
-**配不通就别硬扛**，用降级方案：
-- 用户手动复制正文文字发过来
-- 或用浏览器扩展（如 `zhihu-md`）导出 Markdown 文件，再走 `kg-doc` 摄入
-
-两种降级方案都不影响后续的沉淀流程——那部分本来就是 AI 做的。
+自动探测不对时传 `--chrome-home <path>`。

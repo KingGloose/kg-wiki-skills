@@ -5,7 +5,7 @@ description: 学习模式：陪用户系统学习一个新领域。先查库确�
 
 # kg-learn · 学习模式
 
-多库时先运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，按学习主题和
+多库时先运行 `../bin/kg-node kg-vault/scripts/vault-cli.mjs list --json`，按学习主题和
 `desc` 自动选库，调用脚本显式传 `--vault <path>`；不要静默使用默认库或询问用户分类。
 
 陪用户从**不了解**到**能用**。核心不是把知识讲一遍，是让他真正搭起心智模型。
@@ -26,14 +26,10 @@ description: 学习模式：陪用户系统学习一个新领域。先查库确�
 ### 1. 查库：确认已知起点（别重复讲他已懂的）
 
 ```bash
-../bin/kg-py kg-ask/scripts/search_vault.py "<主题>"
+../bin/kg-node kg-ask/scripts/search-vault.mjs "<主题>"
 ```
 
-> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
-> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
->
-> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
+这些检索与计划命令都是纯 Node，不需要激活 venv。
 
 - **库里有沉淀** → 从那里接着往上搭，明确说"你在 `wiki/xxx` 记过 A，今天从 B 开始"
 - **只有 index 关键词** → 他知道这东西存在但没深入，正好补
@@ -110,7 +106,7 @@ description: 学习模式：陪用户系统学习一个新领域。先查库确�
 
 ## 全程记录三类东西（比讲课内容更重要）
 
-学习过程中随时记，用 `plan.py note`（有计划时）或先记在对话里:
+学习过程中随时记，用 `plan.mjs note`（有计划时）或先记在对话里:
 
 - **误解**：「我原以为 X，实际是 Y」——**最值钱**，因为这是他个人的认知坑
 - **卡点**：哪里卡住了、卡了多久、什么提示解开的
@@ -122,19 +118,17 @@ description: 学习模式：陪用户系统学习一个新领域。先查库确�
 **不要自作主张创建。**
 
 ```bash
-source ../.venv/bin/activate
-
 # 创建（--why 很重要：记下"为了解决什么问题"，防止学着学着忘了目的）
-python scripts/plan.py new "Rust 所有权与借用" --domain Rust \
+../bin/kg-node kg-learn/scripts/plan.mjs new "Rust 所有权与借用" --domain Rust \
   --why "看得懂但自己写编译不过，想搞清心智模型" \
   --steps "摸底|move 语义|借用规则|生命周期|实战改代码"
 
-python scripts/plan.py list                    # 看所有计划
-python scripts/plan.py show <slug>             # 详情与进度
-python scripts/plan.py done <slug> 1 --note "这步的收获"
-python scripts/plan.py note <slug> --note "误解：以为...实际..."
-python scripts/plan.py session <slug> --minutes 20 --summary "..."
-python scripts/plan.py archive <slug>          # 学完归档
+../bin/kg-node kg-learn/scripts/plan.mjs list                    # 看所有计划
+../bin/kg-node kg-learn/scripts/plan.mjs show <slug>             # 详情与进度
+../bin/kg-node kg-learn/scripts/plan.mjs done <slug> 1 --note "这步的收获"
+../bin/kg-node kg-learn/scripts/plan.mjs note <slug> --note "误解：以为...实际..."
+../bin/kg-node kg-learn/scripts/plan.mjs session <slug> --minutes 20 --summary "..."
+../bin/kg-node kg-learn/scripts/plan.mjs archive <slug>          # 学完归档
 ```
 
 计划存 `learning/<slug>.json`——**过程性产物，不是沉淀知识**，所以不进 wiki。

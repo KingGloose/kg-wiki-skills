@@ -34,21 +34,21 @@ source ../.venv/bin/activate
 
 ```bash
 # 单文件 → 存入 raw/（返回输出路径）
-python scripts/ingest_doc.py /path/to/文件.pdf
+../bin/kg-py kg-doc/scripts/ingest_doc.py /path/to/文件.pdf
 
 # 只预览不落盘（判断价值时用）
-python scripts/ingest_doc.py /path/to/文件.pdf --stdout
+../bin/kg-py kg-doc/scripts/ingest_doc.py /path/to/文件.pdf --stdout
 
 # 批量处理文件夹（递归，已处理过的自动跳过 = 断点续传）
-python scripts/ingest_doc.py /path/to/文件夹 --batch
-python scripts/ingest_doc.py /path/to/文件夹 --batch --ext pdf,docx   # 限定类型
-python scripts/ingest_doc.py /path/to/文件夹 --batch --force          # 强制重跑
+../bin/kg-py kg-doc/scripts/ingest_doc.py /path/to/文件夹 --batch
+../bin/kg-py kg-doc/scripts/ingest_doc.py /path/to/文件夹 --batch --ext pdf,docx   # 限定类型
+../bin/kg-py kg-doc/scripts/ingest_doc.py /path/to/文件夹 --batch --force          # 强制重跑
 
 # 网页（普通技术博客；自动跟随 HTTP 与 meta 跳转）
-python scripts/ingest_doc.py "https://blog.example.com/post"
+../bin/kg-py kg-doc/scripts/ingest_doc.py "https://blog.example.com/post"
 
 # 自定义输出位置/标题（单文件、URL 有效；使用知识库绝对路径）
-python scripts/ingest_doc.py /path/to/x.docx --out /path/to/vault/raw/自定义.md --title "我的标题"
+../bin/kg-py kg-doc/scripts/ingest_doc.py /path/to/x.docx --out /path/to/vault/raw/自定义.md --title "我的标题"
 ```
 
 参数：`--batch` 批量 | `--ext` 限定扩展名 | `--force` 覆盖已有 | `--stdout` 预览 | `--out` 输出路径 | `--title` 标题
@@ -58,7 +58,7 @@ python scripts/ingest_doc.py /path/to/x.docx --out /path/to/vault/raw/自定义.
 
 ## 工作流（遵守 AGENTS.md）
 
-0. 运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，按 `desc` 自动选库；
+0. 运行 `../bin/kg-node kg-vault/scripts/vault-cli.mjs list --json`，按 `desc` 自动选库；
    正式写入时显式传 `--vault <path>`，不要静默使用默认库，也不要为分类询问用户。
 1. 用户给文档路径。
 2. **先预览判断价值**：`--stdout` 看内容，和用户讨论这文档值不值得沉淀、重点在哪。

@@ -15,7 +15,7 @@ echo "已设置 core.hooksPath = scripts/hooks"
 echo
 echo "检查图片压缩依赖:"
 missing=()
-for bin in cwebp gif2webp magick python3; do
+for bin in cwebp gif2webp magick node; do
   if command -v "$bin" >/dev/null; then
     printf '  %-10s OK\n' "$bin"
   else

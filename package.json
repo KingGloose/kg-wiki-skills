@@ -1,0 +1,13 @@
+{
+  "name": "@kg/wiki-skills",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Node-first runtime and optional Python backends for kg-wiki agent skills.",
+  "scripts": {
+    "check": "node scripts/check.mjs"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

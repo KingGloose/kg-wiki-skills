@@ -21,26 +21,18 @@ description: 库内检索与问答：给一个问题或关键词，检索 wiki �
 
 ## 用法
 
-多库先运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，根据问题主题与
+多库先运行 `../bin/kg-node kg-vault/scripts/vault-cli.mjs list --json`，根据问题主题与
 `desc` 自动选择最相关的库，并给检索命令显式加 `--vault <path>`。不要静默使用默认库，
 也不要仅因多库询问用户。
 
 ```bash
-source ../.venv/bin/activate
-
-python scripts/search_vault.py "泛域名 证书" --vault <path>  # 检索（自动建/更新索引）
-python scripts/search_vault.py "Agent 架构" --scope wiki  # 只搜沉淀页，不含旧笔记
-python scripts/search_vault.py "xxx" --context 3        # 片段多给几行上下文
-python scripts/search_vault.py "xxx" --json             # 结构化输出
-python scripts/search_vault.py --stats                  # 看库构成
-python scripts/search_vault.py --rebuild                # 强制重建索引
+../bin/kg-node kg-ask/scripts/search-vault.mjs "泛域名 证书" --vault <path>  # 检索（自动建/更新索引）
+../bin/kg-node kg-ask/scripts/search-vault.mjs "Agent 架构" --scope wiki  # 只搜沉淀页，不含旧笔记
+../bin/kg-node kg-ask/scripts/search-vault.mjs "xxx" --context 3        # 片段多给几行上下文
+../bin/kg-node kg-ask/scripts/search-vault.mjs "xxx" --json             # 结构化输出
+../bin/kg-node kg-ask/scripts/search-vault.mjs --stats                  # 看库构成
+../bin/kg-node kg-ask/scripts/search-vault.mjs --rebuild                # 强制重建索引
 ```
-
-> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
-> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
->
-> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
 
 参数：`--limit`(返回几个文件,默认8) | `--snippets`(每文件几个片段) |
 `--min-score`(相关度门槛,默认8.0) | `--scope`(wiki/index/raw/archive)

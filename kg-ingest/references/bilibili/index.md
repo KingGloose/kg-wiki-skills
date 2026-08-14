@@ -32,7 +32,7 @@ source ../../../.venv/bin/activate
 **方式 A：扫码登录（推荐，最省事）**
 
 ```bash
-python scripts/login.py
+../../../bin/kg-py kg-ingest/references/bilibili/login.py
 ```
 
 运行后会在 skill 目录生成 `qrcode.png`（同时终端也打印 ANSI 二维码）。用手机 B 站 APP 扫码确认，脚本自动把 cookie 写进 `.env`，成功后删掉二维码图片。终端 ANSI 二维码在部分环境无法扫描时，直接打开 `qrcode.png` 扫即可。
@@ -58,21 +58,21 @@ cp .env.example .env    # Windows: copy .env.example .env
 
 ```bash
 # 扫码登录（首次/换机器/cookie 过期时）
-python scripts/login.py
+../../../bin/kg-py kg-ingest/references/bilibili/login.py
 
 # 稍后再看列表
-python scripts/list_videos.py toview
+../../../bin/kg-py kg-ingest/references/bilibili/list_videos.py toview
 
 # 我的所有收藏夹（拿 media_id）
-python scripts/list_videos.py favlist
+../../../bin/kg-py kg-ingest/references/bilibili/list_videos.py favlist
 
 # 某个收藏夹内容（media_id 来自上一步），可带页码
-python scripts/list_videos.py fav <media_id> [页数]
+../../../bin/kg-py kg-ingest/references/bilibili/list_videos.py fav <media_id> [页数]
 
 # 按关键词搜索全站视频（不依赖稍后再看/收藏）
-python scripts/search_videos.py "<关键词>"
-python scripts/search_videos.py "Rust 异步" --order click --limit 10
-python scripts/search_videos.py "AI Agent" --order pubdate --days 365 --min-min 8 --max-min 60
+../../../bin/kg-py kg-ingest/references/bilibili/search_videos.py "<关键词>"
+../../../bin/kg-py kg-ingest/references/bilibili/search_videos.py "Rust 异步" --order click --limit 10
+../../../bin/kg-py kg-ingest/references/bilibili/search_videos.py "AI Agent" --order pubdate --days 365 --min-min 8 --max-min 60
 
 #   --order  totalrank(综合,默认) / click(播放多) / pubdate(最新) / dm(弹幕多) / stow(收藏多) / scores(评论多)
 #   --days N       只要最近 N 天发布的
@@ -82,17 +82,17 @@ python scripts/search_videos.py "AI Agent" --order pubdate --days 365 --min-min 
 #   --page N       翻页
 
 # 抓某个视频的字幕（纯文本）
-python scripts/get_transcript.py <bvid或视频URL>
+../../../bin/kg-py kg-ingest/references/bilibili/get_transcript.py <bvid或视频URL>
 
 # 抓字幕（结构化 JSON，含分P/分区/简介）
-python scripts/get_transcript.py <bvid或视频URL> --json
+../../../bin/kg-py kg-ingest/references/bilibili/get_transcript.py <bvid或视频URL> --json
 
 # 无字幕视频：下音频本地 ASR 转写（需 asr 依赖 + ffmpeg，约 12 倍实时）
-python scripts/get_transcript.py <bvid> --asr
-python scripts/get_transcript.py <bvid> --asr --model large-v3
+../../../bin/kg-py kg-ingest/references/bilibili/get_transcript.py <bvid> --asr
+../../../bin/kg-py kg-ingest/references/bilibili/get_transcript.py <bvid> --asr --model large-v3
 
 # ASR 时补专名热词（降低误识）。UP主名会自动当"说话人"，标题+简介自动抽专名。
-python scripts/get_transcript.py <bvid> --asr --hotword Transformer --hotword-speaker 张鑫旭
+../../../bin/kg-py kg-ingest/references/bilibili/get_transcript.py <bvid> --asr --hotword Transformer --hotword-speaker 张鑫旭
 ```
 
 ## 工作流

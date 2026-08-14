@@ -5,7 +5,7 @@ description: 知识回顾：挑几页沉淀过的 wiki 内容出来重新唤醒�
 
 # kg-review · 知识回顾
 
-多库时先运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，按回顾主题和
+多库时先运行 `../bin/kg-node kg-vault/scripts/vault-cli.mjs list --json`，按回顾主题和
 `desc` 自动选库，调用脚本显式传 `--vault <path>`；不要静默使用默认库或询问用户分类。
 
 Karpathy LLM Wiki 模式的隐含前提:**知识要被反复唤醒才有价值**。
@@ -19,28 +19,17 @@ Karpathy LLM Wiki 模式的隐含前提:**知识要被反复唤醒才有价值**
 
 ## 环境
 
-无额外依赖（纯标准库）。
-
-```bash
-# 路径相对本 SKILL.md 所在目录（AI 会自动解析成绝对路径）
-source ../.venv/bin/activate
-```
-
-> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
-> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
->
-> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
+纯 Node 标准库，无需 Python 或 venv。
 
 ## 用法
 
 ```bash
-python scripts/pick_review.py                        # 默认挑 3 页（stale）
-python scripts/pick_review.py --count 5
-python scripts/pick_review.py --strategy random      # 打破惯性
-python scripts/pick_review.py --domain AI            # 限定领域
-python scripts/pick_review.py --status               # 各页回顾情况总览
-python scripts/pick_review.py --mark "wiki/AI/xxx.md"  # 标记已回顾
+../bin/kg-node kg-review/scripts/pick-review.mjs                        # 默认挑 3 页（stale）
+../bin/kg-node kg-review/scripts/pick-review.mjs --count 5
+../bin/kg-node kg-review/scripts/pick-review.mjs --strategy random      # 打破惯性
+../bin/kg-node kg-review/scripts/pick-review.mjs --domain AI            # 限定领域
+../bin/kg-node kg-review/scripts/pick-review.mjs --status               # 各页回顾情况总览
+../bin/kg-node kg-review/scripts/pick-review.mjs --mark "wiki/AI/xxx.md"  # 标记已回顾
 ```
 
 ## 四种挑选策略

@@ -19,7 +19,7 @@ description: 跨项目知识捕获：在任意项目里写代码、排查问题�
 
 ## 定位库根（关键，不能出错）
 
-统一调用 `media_to_text.vault` 解析（**不要 hardcode 绝对路径**）：
+统一复用 `lib/vault.mjs`（保留 Python 媒体后端使用兼容的 `media_to_text.vault`） 解析（**不要 hardcode 绝对路径**）：
 
 1. 用户本次明确指定的路径
 2. 环境变量 `KG_VAULT`
@@ -29,7 +29,7 @@ description: 跨项目知识捕获：在任意项目里写代码、排查问题�
 用脚本读取全部库及用途：
 
 ```bash
-../bin/kg-py kg-vault/scripts/vault_cli.py list --json
+../bin/kg-node kg-vault/scripts/vault-cli.mjs list --json
 ```
 
 只配置了一个有效库时直接使用；多个库时根据本次结论主题与 `desc` 自动选择，
@@ -80,14 +80,14 @@ description: 跨项目知识捕获：在任意项目里写代码、排查问题�
 **别急着写新页** —— 库里可能已经记过，或有该建双链的相关页：
 
 ```bash
-../bin/kg-py kg-ask/scripts/search_vault.py "<关键词>" --scope wiki --vault <库根>
+../bin/kg-node kg-ask/scripts/search-vault.mjs "<关键词>" --scope wiki --vault <库根>
 ```
 
 > **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
 > `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
 >
-> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
+> 嫌麻烦可用 `../bin/kg-node`，它自己找环境，无需激活也无需 cd：
+> `../bin/kg-node <skill>/scripts/<脚本>.mjs [参数]`
 
 三种结果：
 - **已有相同主题的页** → 补充进那页，不要新建重复页
@@ -132,7 +132,7 @@ description: 跨项目知识捕获：在任意项目里写代码、排查问题�
 ### 第 6 步：建双链 + 体检
 
 ```bash
-../bin/kg-py kg-lint/scripts/lint_vault.py --vault <库根>
+../bin/kg-node kg-lint/scripts/lint-vault.mjs --vault <库根>
 ```
 
 确认新页不是孤儿页、没有死链、index 有唤醒条目。

@@ -82,7 +82,7 @@ fi
 
 # 先找出真正会被改引用的文档。若其中夹着未暂存或未跟踪内容就中止，
 # 避免 `git add` 把用户的其他笔记修改偷偷带进本次提交。
-KG_COMPRESS_MAP="$MAP" python3 scripts/fix-refs.py --files0 > "$AFFECTED"
+KG_COMPRESS_MAP="$MAP" node scripts/fix-refs.mjs --files0 > "$AFFECTED"
 while IFS= read -r -d '' d; do
   if ! git ls-files --error-unmatch -- "$d" >/dev/null 2>&1 || \
      ! git diff --quiet -- "$d"; then
@@ -92,7 +92,7 @@ while IFS= read -r -d '' d; do
   fi
 done < "$AFFECTED"
 
-KG_COMPRESS_MAP="$MAP" python3 scripts/fix-refs.py >/dev/null
+KG_COMPRESS_MAP="$MAP" node scripts/fix-refs.mjs >/dev/null
 refs_rewritten=1
 
 # 引用更新成功后才删除原图，并且只暂存本次映射真正影响到的文档。

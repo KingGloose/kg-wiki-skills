@@ -44,17 +44,17 @@ security add-generic-password -a weread -s kg-weread-apikey -w '<wrk-xxx>' -U
 
 ```bash
 # 书架体检（第一次会逐本查进度，之后 6 小时内走缓存）
-../../../bin/kg-py kg-ingest/references/weread/weread.py shelf
-../../../bin/kg-py kg-ingest/references/weread/weread.py shelf --refresh    # 强制重拉
+../../../bin/kg-node kg-ingest/references/weread/weread.mjs shelf
+../../../bin/kg-node kg-ingest/references/weread/weread.mjs shelf --refresh    # 强制重拉
 
 # 某本书的划线（书名关键词或 bookId 都行）
-../../../bin/kg-py kg-ingest/references/weread/weread.py notes "非暴力沟通"
+../../../bin/kg-node kg-ingest/references/weread/weread.mjs notes "非暴力沟通"
 
 # 哪些书有笔记
-../../../bin/kg-py kg-ingest/references/weread/weread.py notebooks
+../../../bin/kg-node kg-ingest/references/weread/weread.mjs notebooks
 
 # 阅读统计
-../../../bin/kg-py kg-ingest/references/weread/weread.py stats --mode monthly
+../../../bin/kg-node kg-ingest/references/weread/weread.mjs stats --mode monthly
 #   weekly / monthly / annually / overall
 
 # 都支持 --out 落盘

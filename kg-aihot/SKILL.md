@@ -18,12 +18,12 @@ khazix-skills/aihot（MIT），数据服务 aihot.virxact.com。
 ## 用法
 
 ```bash
-python3 kg-aihot/scripts/aihot.py today          # 过去24h精选(默认)
-python3 kg-aihot/scripts/aihot.py week           # 最近一周
-python3 kg-aihot/scripts/aihot.py hot            # 当前最热
-python3 kg-aihot/scripts/aihot.py daily          # 最新 AI 日报
-python3 kg-aihot/scripts/aihot.py search "RAG"   # 关键词查
-python3 kg-aihot/scripts/aihot.py category model # 分类(model/paper/industry)
+../bin/kg-node kg-aihot/scripts/aihot.mjs today          # 过去24h精选(默认)
+../bin/kg-node kg-aihot/scripts/aihot.mjs week           # 最近一周
+../bin/kg-node kg-aihot/scripts/aihot.mjs hot            # 当前最热
+../bin/kg-node kg-aihot/scripts/aihot.mjs daily          # 最新 AI 日报
+../bin/kg-node kg-aihot/scripts/aihot.mjs search "RAG"   # 关键词查
+../bin/kg-node kg-aihot/scripts/aihot.mjs category model # 分类(model/paper/industry)
 ```
 
 ## 纪律

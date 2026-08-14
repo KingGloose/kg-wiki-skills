@@ -5,7 +5,7 @@
 官方 CLI，认证走 OAuth（不用手工建 token 也不用在仓库里存密钥），
 分页、限流、错误处理它都管了。本 skill 只做三件 `gh` 不该管的事：
 
-1. 集中处理代理（GitHub 直连不通）
+1. 需要时集中注入代理
 2. 把 issue 正文 + 讨论拼装成可读 Markdown
 3. 落 `raw/` 的命名和 frontmatter 跟其他 `kg-*` 对齐
 
@@ -13,34 +13,33 @@
 
 ```bash
 brew install gh
-HTTPS_PROXY=http://127.0.0.1:7897 gh auth login    # 选 web browser 登录
+gh auth login    # 选 web browser 登录；网络需要代理时自行设置 HTTPS_PROXY
 ```
 
-**GitHub 直连不通，必须走代理。** 脚本会自动注入 `HTTPS_PROXY`
-（默认 `http://127.0.0.1:7897`，换网络环境时用 `KG_GH_PROXY` 覆盖）。
-手工敲 `gh` 时要自己带代理，脚本里不用管。
+脚本尊重现有 `HTTPS_PROXY`；设置 `KG_GH_PROXY` 时会在未配置代理的环境中注入它。
+不写死某台机器的代理端口。
 
 验证：
 
 ```bash
-HTTPS_PROXY=http://127.0.0.1:7897 gh api user --jq .login
+gh api user --jq .login
 ```
 
 ## 用法
 
 ```bash
 # 我 star 了什么（按语言分组，按 star 数排序）
-../../../bin/kg-py kg-ingest/references/github/gh_fetch.py stars
-../../../bin/kg-py kg-ingest/references/github/gh_fetch.py stars --language Python
+../../../bin/kg-node kg-ingest/references/github/gh-fetch.mjs stars
+../../../bin/kg-node kg-ingest/references/github/gh-fetch.mjs stars --language Python
 
 # 单个 issue/PR 全文 + 全部讨论
-../../../bin/kg-py kg-ingest/references/github/gh_fetch.py issue "sjzar/chatlog#197"
+../../../bin/kg-node kg-ingest/references/github/gh-fetch.mjs issue "sjzar/chatlog#197"
 
 # 我提的 issue / PR（含正文）
-../../../bin/kg-py kg-ingest/references/github/gh_fetch.py mine --limit 30
+../../../bin/kg-node kg-ingest/references/github/gh-fetch.mjs mine --limit 30
 
 # 仓库概况 + README
-../../../bin/kg-py kg-ingest/references/github/gh_fetch.py repo "Tencent/WeChatReading"
+../../../bin/kg-node kg-ingest/references/github/gh-fetch.mjs repo "Tencent/WeChatReading"
 
 # 都支持 --out 落盘
 ... --out "<vault>/raw/gh-<slug>.md"

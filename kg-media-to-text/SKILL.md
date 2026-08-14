@@ -1,7 +1,6 @@
 ---
 name: kg-media-to-text
 description: 底层核心库（非用户直接调用）：把任意素材转成文字。按类型分流——PDF 走 Docling、Office 走 MarkItDown、音视频走本地 Whisper（macOS 用 mlx-whisper / Linux 用 faster-whisper 自动选）、txt/md 直接读。供上层业务 skill（kg-bilibili / kg-wechat / kg-xiaoyuzhou / kg-doc）在代码中 import 调用，不面向用户唤起。
-disable-model-invocation: true
 ---
 
 # kg-media-to-text · 素材 → 文字 底层库

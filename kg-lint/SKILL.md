@@ -5,7 +5,7 @@ description: 知识库健康检查（体检）：找出孤儿页、死链、raw 
 
 # kg-lint · 库健康检查
 
-多库时先运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，按当前沉淀主题和
+多库时先运行 `../bin/kg-node kg-vault/scripts/vault-cli.mjs list --json`，按当前沉淀主题和
 `desc` 自动选库，体检命令显式传 `--vault <path>`；若用户要全局体检则逐库运行。
 
 按 `AGENTS.md` 的「Lint（定期体检）」职责，找出知识网的断点与账目不一致。
@@ -19,26 +19,15 @@ description: 知识库健康检查（体检）：找出孤儿页、死链、raw 
 
 ## 环境
 
-无额外依赖（纯标准库）。
-
-```bash
-# 路径相对本 SKILL.md 所在目录（AI 会自动解析成绝对路径）
-source ../.venv/bin/activate
-```
-
-> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
-> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
->
-> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
+纯 Node 标准库，无需 Python 或 venv。
 
 ## 用法
 
 ```bash
-python scripts/lint_vault.py                       # 全部检查，人类可读报告
-python scripts/lint_vault.py --json                # 结构化输出
-python scripts/lint_vault.py --only orphan,deadlink # 只跑指定项
-python scripts/lint_vault.py --only image          # 只查图片体积
+../bin/kg-node kg-lint/scripts/lint-vault.mjs                       # 全部检查，人类可读报告
+../bin/kg-node kg-lint/scripts/lint-vault.mjs --json                # 结构化输出
+../bin/kg-node kg-lint/scripts/lint-vault.mjs --only orphan,deadlink # 只跑指定项
+../bin/kg-node kg-lint/scripts/lint-vault.mjs --only image          # 只查图片体积
 ```
 
 退出码：0 = 无问题，1 = 有发现（可用于脚本判断）。
@@ -89,7 +78,7 @@ python scripts/lint_vault.py --only image          # 只查图片体积
 
 ## 工作流
 
-1. 跑 `lint_vault.py`，读报告。
+1. 跑 `lint-vault.mjs`，读报告。
 2. **和用户一起判断**每条是真问题还是可接受：
    - 孤儿页 → 是真该建双链，还是这页本就独立（如新领域第一页，暂无兄弟页可链）？
    - raw 未引用 → 是该蒸馏，还是它只是留档原文？

@@ -16,38 +16,26 @@ B站很多视频没有 CC/AI 字幕，得走 ASR。
 
 ## 环境
 
-见 `../README.md`。本 skill 需要：
-- 字幕路径（多数情况）：`asr-mac.txt` 或 `asr-linux.txt` —— **只为其中的 yt-dlp**
-- ASR 兜底：额外需要 ffmpeg
-
-```bash
-# 路径相对本 SKILL.md 所在目录（AI 会自动解析成绝对路径）
-source ../../../.venv/bin/activate
-```
-
-> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
-> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
->
-> 嫌麻烦可用 `../../../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../../../bin/kg-py kg-ingest/references/youtube/<脚本>.py [参数]`
+字幕路径只需要系统可执行的 `yt-dlp`；Node 主流程不需要激活 venv。
+只有无字幕、强制 `--asr` 时，才需要仓库 Python 后端和 ffmpeg。
 
 ## 用法
 
 ```bash
 # 默认：按语言优先级找字幕，找不到才本地转写
-python scripts/ingest_video.py "https://www.youtube.com/watch?v=xxxx"
-python scripts/ingest_video.py xxxxxxxxxxx          # 直接给 11 位视频 ID 也行
+../../../bin/kg-node kg-ingest/references/youtube/ingest-video.mjs "https://www.youtube.com/watch?v=xxxx"
+../../../bin/kg-node kg-ingest/references/youtube/ingest-video.mjs xxxxxxxxxxx          # 直接给 11 位视频 ID 也行
 
 # 指定字幕语言优先级（默认 zh-Hans,zh-CN,zh,en,en-orig）
-python scripts/ingest_video.py "<链接>" --lang en
-python scripts/ingest_video.py "<链接>" --lang zh-Hans,en
+../../../bin/kg-node kg-ingest/references/youtube/ingest-video.mjs "<链接>" --lang en
+../../../bin/kg-node kg-ingest/references/youtube/ingest-video.mjs "<链接>" --lang zh-Hans,en
 
 # 跳过字幕，强制本地 ASR（字幕质量差时用）
-python scripts/ingest_video.py "<链接>" --asr
+../../../bin/kg-node kg-ingest/references/youtube/ingest-video.mjs "<链接>" --asr
 
 # 预览不落盘 / 自定义输出
-python scripts/ingest_video.py "<链接>" --stdout
-python scripts/ingest_video.py "<链接>" --out /path/to/vault/raw/自定义.md
+../../../bin/kg-node kg-ingest/references/youtube/ingest-video.mjs "<链接>" --stdout
+../../../bin/kg-node kg-ingest/references/youtube/ingest-video.mjs "<链接>" --out /path/to/vault/raw/自定义.md
 ```
 
 ## 工作流（遵守 AGENTS.md）
@@ -73,6 +61,8 @@ python scripts/ingest_video.py "<链接>" --out /path/to/vault/raw/自定义.md
   抓字幕和音频不受影响，可忽略。
 - **私有/受限视频**：需登录或地区限制的会失败，脚本给出明确提示（本 skill 不处理登录态）。
 - **ASR 不区分说话人**：多人对谈的转写是连续文本，解析时不确定谁在说就说不确定。
+- **本地 ASR 的 Python 边界**：Node 只把下载好的音频交给
+  `kg-media-to-text/scripts/to-text.py`，Docling/Whisper 依赖仍留在 `.venv`，不会污染 Node 主流程。
 
 ## 已验证
 

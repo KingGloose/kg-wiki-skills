@@ -24,15 +24,8 @@ description: 把现有笔记归一化成 LLM Wiki 结构。用户的笔记形态
 ### 第 1 步：体检（只读）
 
 ```bash
-source ../.venv/bin/activate
-python scripts/analyze_notes.py <笔记目录>
+../bin/kg-node kg-init/scripts/analyze-notes.mjs <笔记目录>
 ```
-
-> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
-> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
->
-> 嫌麻烦可用 `../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../bin/kg-py <skill>/scripts/<脚本>.py [参数]`
 
 输出：笔记/文档/图片的数量与体积、领域分布、最大的笔记、非 md 文档清单、
 未被引用的图片、现有双链数量、已有的 LLM Wiki 结构。
@@ -43,7 +36,7 @@ python scripts/analyze_notes.py <笔记目录>
 ### 第 2 步：出计划并解释（只读）
 
 ```bash
-python scripts/migrate.py plan <笔记目录>
+../bin/kg-node kg-init/scripts/migrate.mjs plan <笔记目录>
 ```
 
 输出的计划包含四部分，**都要讲给用户**：
@@ -59,8 +52,8 @@ python scripts/migrate.py plan <笔记目录>
 ### 第 3 步：执行
 
 ```bash
-python scripts/migrate.py apply <笔记目录> --confirm --dry-run   # 建议先演练
-python scripts/migrate.py apply <笔记目录> --confirm             # 真正执行
+../bin/kg-node kg-init/scripts/migrate.mjs apply <笔记目录> --confirm --dry-run   # 建议先演练
+../bin/kg-node kg-init/scripts/migrate.mjs apply <笔记目录> --confirm             # 真正执行
 ```
 
 执行后**还有四件事要和用户一起做**（脚本故意不自动做）：
@@ -70,12 +63,12 @@ python scripts/migrate.py apply <笔记目录> --confirm             # 真正执
 cd <笔记目录> && bash scripts/setup.sh
 
 # 2. 生成 index 唤醒条目（需要判断，不能自动化）
-python scripts/extract_topics.py <笔记目录>/archive
+../bin/kg-node kg-init/scripts/extract-topics.mjs <笔记目录>/archive
 #    → 输出是草稿。你要做三件事再写进 index.md：
 #      归并同类 / 删掉无价值的 / 压缩成可快速扫描的关键词行
 
 # 3. 注册知识库，让其他 skill 能找到
-python ../kg-vault/scripts/vault_cli.py add <笔记目录>
+../bin/kg-node kg-vault/scripts/vault-cli.mjs add <笔记目录>
 
 # 4. 陪用户改 AGENTS.md（templates/AGENTS.md 只是起点）
 #    尤其「写作约定」和「领域划分」——那是最个人化的部分
@@ -87,7 +80,7 @@ python ../kg-vault/scripts/vault_cli.py add <笔记目录>
 cd <笔记目录>
 DRY_RUN=1 scripts/compress-images.sh   # 先估算能省多少
 scripts/compress-images.sh             # 压缩
-python3 scripts/fix-refs.py            # 同步改写 md 引用
+node scripts/fix-refs.mjs            # 同步改写 md 引用
 ```
 
 ## 与 kg-vault 的分工
@@ -118,7 +111,7 @@ clone 到新电脑要十几分钟才被发现。治理后降到 690 MB，但代�
 | 文件 | 作用 |
 |------|------|
 | `scripts/hooks/pre-commit` | 提交时自动把新增图片压成 WebP 并改写 md 引用，日常无感 |
-| `scripts/compress-images.sh` + `fix-refs.py` | 批量压缩（迁移旧图用） |
+| `scripts/compress-images.sh` + `fix-refs.mjs` | 批量压缩（迁移旧图用） |
 | `scripts/setup.sh` | 设置 `core.hooksPath`，**每台新机器跑一次** |
 
 > hook 为什么要手动装：git 不追踪 `.git/hooks/`，hook 无法随 clone 传播。
@@ -175,13 +168,13 @@ notes/                      notes/
 - **不动工具目录** —— `.git` / `.obsidian` / `node_modules` 等留在根目录
 - **不批量蒸馏** —— 那违背「一切按需」，且质量堪忧
 - `apply` 是幂等的：已归档的不会重复移动，已存在的文件不覆盖
-- 出问题看 `python scripts/migrate.py rollback <目录>`（会按 git/非 git 给不同方案）
+- 出问题看 `../bin/kg-node kg-init/scripts/migrate.mjs rollback <目录>`；它只输出可核对的恢复清单，不会自动覆盖或删除文件。
 
 ## 已验证
 
-- 拿一个真实 archive（231 个笔记、6943 张图、957MB、7032 处双链）跑 `analyze_notes`，
+- 拿一个真实 archive（231 个笔记、6943 张图、957MB、7032 处双链）跑 `analyze-notes.mjs`，
   数据准确，领域分布与最大文件识别正确。
-- `extract_topics` 从 161 个文件抽出 2939 个标题，已过滤噪声标题（"总结"/"其他"/纯编号）。
+- `extract-topics.mjs` 从 161 个文件抽出 2939 个标题，已过滤噪声标题（"总结"/"其他"/纯编号）。
 - 模拟乱笔记目录（中文目录名、混 txt/png、有 `.obsidian`、git 仓库）全流程测试：
   `plan` 只读不动 → 无 `--confirm` 正确拒绝 → `--dry-run` 演练不落地 →
   `apply` 后内容原样、`.obsidian` 未动、log 已记录、结构被 `looks_like_vault` 认可 →

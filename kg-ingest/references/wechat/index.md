@@ -35,10 +35,10 @@ source ../../../.venv/bin/activate
 ```bash
 
 # 抓文章 → md 存到指定路径，图片存到指定 assets 目录
-python scripts/wechat_to_md.py "<公众号URL>" --out <输出.md> --assets <图片目录>
+../../../bin/kg-py kg-ingest/references/wechat/wechat_to_md.py "<公众号URL>" --out <输出.md> --assets <图片目录>
 
 # 只看正文（打到 stdout，不下图，用于快速预览/AI 直接读）
-python scripts/wechat_to_md.py "<公众号URL>" --no-images
+../../../bin/kg-py kg-ingest/references/wechat/wechat_to_md.py "<公众号URL>" --no-images
 ```
 
 参数：
@@ -56,7 +56,7 @@ python scripts/wechat_to_md.py "<公众号URL>" --no-images
 3. 决定沉淀 → 正式抓取带图版本，**图片存进库的 `assets/`**：
 
    ```bash
-   python scripts/wechat_to_md.py "<url>" \
+   ../../../bin/kg-py kg-ingest/references/wechat/wechat_to_md.py "<url>" \
      --out /path/to/vault/raw/wx-<日期>-<短标题>.md \
      --assets /path/to/vault/assets \
      --asset-prefix "../assets"

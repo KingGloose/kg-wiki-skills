@@ -36,12 +36,12 @@ xx 有关系吗"——他的思路就断了，而且可能因为答不上来就�
 
 ## 落盘
 
-先运行 `../bin/kg-py kg-vault/scripts/vault_cli.py list --json`，按灵感主题与 `desc`
+先运行 `../bin/kg-node kg-vault/scripts/vault-cli.mjs list --json`，按灵感主题与 `desc`
 自动选择库。多库时给下面命令在子命令前加 `--vault <path>`；不要使用默认库代替分类，
 也不要为选库打断用户。
 
 ```bash
-../bin/kg-py kg-idea/scripts/idea.py --vault <path> new "标题" \
+../bin/kg-node kg-idea/scripts/idea.mjs --vault <path> new "标题" \
   --body "用你的话把他的想法说清楚，一两段" \
   --topics "产品,AI" \
   --quote "他当时说的原话" \
@@ -77,7 +77,7 @@ xx 有关系吗"——他的思路就断了，而且可能因为答不上来就�
 他答了：
 
 ```bash
-../bin/kg-py kg-idea/scripts/idea.py append "标题" \
+../bin/kg-node kg-idea/scripts/idea.mjs append "标题" \
   --section "追问" --body "问：xxx\n答：xxx"
 ```
 
@@ -87,10 +87,10 @@ xx 有关系吗"——他的思路就断了，而且可能因为答不上来就�
 ## 回看
 
 ```bash
-idea.py list [--days 30]     最近的灵感，标了「待追问」「已毕业」「N 链」
-idea.py ghosts               提过但还没展开的（双链指向不存在的页）
-idea.py next [--random]      抽一个出来发散
-idea.py show "标题"
+idea.mjs list [--days 30]     最近的灵感，标了「待追问」「已毕业」「N 链」
+idea.mjs ghosts               提过但还没展开的（双链指向不存在的页）
+idea.mjs next [--random]      抽一个出来发散
+idea.mjs show "标题"
 ```
 
 **`next` 给你的是完整正文，发散角度自己想。** 参考过的开源方案
@@ -113,7 +113,7 @@ idea.py show "标题"
 ```bash
 # 1. 先把 wiki 页写好（按库的 AGENTS.md 契约）
 # 2. 再标记毕业
-idea.py graduate "标题" --to "wiki/AI/xxx.md"
+idea.mjs graduate "标题" --to "wiki/AI/xxx.md"
 ```
 
 灵感页**保留**，加一行指向沉淀页 —— 记录这个知识的来路。

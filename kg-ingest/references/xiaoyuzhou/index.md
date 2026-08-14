@@ -40,13 +40,13 @@ source ../../../.venv/bin/activate
 
 ```bash
 # 档1：元信息 + shownotes，存入 raw/（返回路径）
-python scripts/ingest_episode.py "https://www.xiaoyuzhoufm.com/episode/xxxx"
+../../../bin/kg-py kg-ingest/references/xiaoyuzhou/ingest_episode.py "https://www.xiaoyuzhoufm.com/episode/xxxx"
 
 # 预览不落盘（判断价值时用）
-python scripts/ingest_episode.py "<链接>" --stdout
+../../../bin/kg-py kg-ingest/references/xiaoyuzhou/ingest_episode.py "<链接>" --stdout
 
 # 档2：连带下载音频 + 本地转写
-python scripts/ingest_episode.py "<链接>" --transcribe
+../../../bin/kg-py kg-ingest/references/xiaoyuzhou/ingest_episode.py "<链接>" --transcribe
 
 # 其他
 --model <名>      指定 ASR 模型
@@ -65,10 +65,10 @@ python scripts/ingest_episode.py "<链接>" --transcribe
 
 ```bash
 # 主播/嘉宾姓名：shownotes 里常没有，且人名必须走 --hotword-speaker
-python scripts/ingest_episode.py "<链接>" --transcribe --hotword-speaker 携隐Melody
+../../../bin/kg-py kg-ingest/references/xiaoyuzhou/ingest_episode.py "<链接>" --transcribe --hotword-speaker 携隐Melody
 
 # shownotes 没提但你知道的专名（比如原著英文名）
-python scripts/ingest_episode.py "<链接>" --transcribe --hotword Connect --hotword 斯坦福商学院
+../../../bin/kg-py kg-ingest/references/xiaoyuzhou/ingest_episode.py "<链接>" --transcribe --hotword Connect --hotword 斯坦福商学院
 ```
 
 **为什么人名要单独传**：实测人名必须出现在"我是…"句式里才纠得对，

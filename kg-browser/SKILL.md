@@ -1,183 +1,66 @@
 ---
 name: kg-browser
-description: 底层能力：通过 chrome-devtools CLI 操作「用户可见的真实 Chrome」，读取需要登录态或有反爬/JS 挑战的网页内容（知乎、内网文档、语雀、Notion、掘金等），也可用于翻页滚动加载、展开折叠内容、多标签批量读取；另提供从本地 Chrome 历史/书签模糊查找 URL（用户记得看过某篇但找不到链接时）。当上层摄入 skill（如 kg-zhihu）需要浏览器，或用户说「读一下我浏览器里打开的这个页面」「这个站要登录才能看」「纯抓取被 403 了」「之前看过一篇讲 X 的文章帮我找出来」时使用。不做前端调试（CSS/性能/内存那些去用 fe-chrome-devtools）。
+description: 底层浏览器能力：通过 Kimi WebBridge 操作用户真实的 Chrome，使用现有登录态读取需要登录、有反爬或 JS 挑战的页面，也可翻页、滚动、展开折叠、截图、查网络请求和批量读标签页；另提供从本地 Chrome 历史/书签模糊查找 URL。当上层摄入 skill 需要真实浏览器，或用户说「读一下我浏览器里打开的页面」「这个站要登录才能看」「纯抓取被 403 了」「之前看过一篇讲 X 的文章帮我找出来」时使用。
 ---
 
-# kg-browser · 真实浏览器读取能力
+# kg-browser
 
-**定位**：底层能力层（和 `kg-media-to-text` 同级），供上层摄入 skill 调用，也可直接用。
-它解决一件事：**让 AI 读到"只有你登录的浏览器才能看到"的内容**。
+通过 Kimi WebBridge 的本地守护进程操作用户可见的真实 Chrome。不导出 cookie、不伪造凭证、不绕过用户本来无权访问的内容。
 
-## 为什么用真实 Chrome 而不是无头浏览器
+## 会话约定
 
-| | 真实 Chrome（本 skill） | Playwright/无头 |
-|---|---|---|
-| 登录态 | **天然有**（就是你的浏览器） | 要导 cookie / 配 profile |
-| JS 挑战（知乎 `zse-ck` 等） | **天然通过**（真浏览器在跑） | 要额外应对 |
-| 反爬对抗 | **不存在**——就是你在正常浏览 | 需持续跟进 |
-| 安装 | 只需一个 CLI | +300MB Chromium |
+每个用户任务选一个简短的 session 名，例如 `wiki-zhihu-capture`。同一任务的所有命令始终传同一个 `--session`，不要按站点切换 session。
 
-**边界原则**：只读你自己已经能看到的页面。不注入 cookie、不伪造凭证、不绕权限。
-遇到登录页/403，让用户在可见 Chrome 里自己登录，而不是想办法绕过。
+首次打开页面时使用 `--new-tab --group-title "<任务标题>"`。由任务打开的页面会收进同一个标签组。只有用户明确要求关闭时才调 `close_session`。
 
-## 平台支持（WSL 用户必读）
+## 快速命令
 
-| 平台 | 读历史/书签<br>`find-history.py` | 实时操作浏览器<br>`connect-chrome.sh` |
-|------|------|------|
-| macOS | ✅ 开箱可用 | ✅ 开箱可用 |
-| Linux | ✅ 找 `~/.config/google-chrome` 等 | ✅ 开箱可用 |
-| **WSL2** | ✅ **自动穿 `/mnt/c` 读 Windows 侧 Chrome** | ⚠️ 需额外配置 |
-| Windows 原生 | ✅ 走 `%LOCALAPPDATA%` | ✅ 开箱可用 |
-
-**WSL 的实时操作为什么麻烦**：Chrome 跑在 Windows 侧，脚本跑在 WSL 里，
-两者网络命名空间不同 —— `ws://127.0.0.1:<port>` 在 WSL 里指向 WSL 自己，
-连不到 Windows 的 Chrome。`connect-chrome.sh` 检测到 WSL 会打印三种做法
-（Windows 侧监听 `0.0.0.0` 走主机 IP / WSL 内装 Linux Chrome + WSLg /
-仓库放 Windows 侧跑），详见 `references/troubleshooting.md`。
-
-**但多数场景用不到实时操作** —— 只想找"之前看过的那篇文章"，
-`find-history.py` 直接读 SQLite 就够，**无需 debugging，WSL 下开箱可用**。
-
-## 前置（一次性）
-
-1. 装 CLI：`npm i -g chrome-devtools-mcp@latest`
-2. Chrome 开启 remote debugging：
-   - 访问 `chrome://inspect/#remote-debugging`
-   - 勾选 **Allow remote debugging for this browser instance**
-   - **彻底退出 Chrome（⌘Q）**，重新打开
-3. 每次会话首个浏览器命令**必须**先连接：
+以下命令假设当前在 `skills/kg-wiki-skills/`：
 
 ```bash
-bash scripts/connect-chrome.sh
+bin/kg-node kg-browser/scripts/kimi-bridge.mjs list_tabs --session wiki-capture
+
+bin/kg-node kg-browser/scripts/kimi-bridge.mjs navigate "<url>" \
+  --new-tab --group-title "知识摄入" --session wiki-capture
+
+bin/kg-node kg-browser/scripts/kimi-bridge.mjs find_tab "<完整 URL>" \
+  --active --session wiki-capture
+
+bin/kg-node kg-browser/scripts/kimi-bridge.mjs snapshot --session wiki-capture
+bin/kg-node kg-browser/scripts/kimi-bridge.mjs click "@e123" --session wiki-capture
+bin/kg-node kg-browser/scripts/kimi-bridge.mjs fill "@e456" "<内容>" --session wiki-capture
+
+bin/kg-node kg-browser/scripts/kimi-bridge.mjs evaluate \
+  "(() => ({url: location.href, title: document.title, text: document.body.innerText}))()" \
+  --session wiki-capture
 ```
 
-> **连接脚本成功前，不要执行任何 `chrome-devtools` 页面命令**，否则 CLI 会隐式启动一个
-> 干净的隔离浏览器——那里面没有用户的登录态，等于白干。
-> 反复连不上时：让用户彻底退出 Chrome 重开（`DevToolsActivePort` 里的 WS UUID 会失效）。
+客户端连不到守护进程时会自动执行 `kimi-webbridge start`。如果返回 `no extension connected`，请用户在 Chrome 里连接 Kimi WebBridge 扩展，不要改为导出 cookie 的方案。
 
-## 核心命令（按需组合，不要被固定套路限制）
+## 读取正文
+
+1. 先用 `snapshot` 确认页面是否加载完、是否需要登录。
+2. 优先从 snapshot 读文本和找交互元素；只在需要 DOM 属性或大块 HTML 时用 `evaluate`。
+3. 页面折叠时用 snapshot 里的 `@e` 按钮点开；页面变化后重新 snapshot，不要重用旧 `@e`。
+4. 懒加载或无限滚动用 `evaluate` 滚动后再 snapshot。
+5. 正文选择器和站点坑查 `references/site-selectors.md`。
+
+Kimi WebBridge 的 `evaluate` 支持 `async/await`。多次执行时用 IIFE 包住代码，避免在页面的同一 JS realm 里重复声明 `const` / `let`。
+
+## 历史与书签
+
+用户记得看过某篇内容但没有 URL 时：
 
 ```bash
-chrome-devtools list_pages                      # 看当前打开了哪些标签页
-chrome-devtools select_page <idx>                # 切到某个标签页
-chrome-devtools new_page "<url>"                 # 新标签打开
-chrome-devtools navigate_page "<url>"            # 当前标签导航
-
-chrome-devtools take_snapshot                    # 页面结构快照（拿 uid 用于交互）
-chrome-devtools evaluate_script "() => ..."      # ★ 主力：在页面里执行任意 JS
-chrome-devtools evaluate_script "() => ..."       # 大输出见下方「输出太大怎么办」
-
-chrome-devtools click "<uid>"                    # 点击（如"展开阅读全文"）
-chrome-devtools take_screenshot --filePath /tmp/p.png   # 截图（图表类内容兜底）
+bin/kg-node kg-browser/scripts/find-history.mjs --keywords <多个关键词> --articles-only
+bin/kg-node kg-browser/scripts/find-history.mjs --keywords 知乎 知识库 wiki --days 30 --articles-only
 ```
 
-需要某命令的完整参数时**先跑 `chrome-devtools <command> --help`**，不要照搬可能过时的文档。
+主动扩展同义词，找文章时默认加 `--articles-only`。拿到多个相似候选时让用户确认，不要自己猜。细节见 `references/history-search.md`。
 
-## 读正文的思路（不是固定脚本）
+## 边界
 
-**核心工具是 `evaluate_script`——想提取什么、怎么提取，由 AI 按页面实际情况决定。**
-下面是思路和常用片段，按需改写，别当成唯一写法。
-
-### 1. 先看页面状态
-
-```bash
-chrome-devtools evaluate_script "() => ({url: location.href, title: document.title, len: document.body.innerText.length})"
-```
-
-正文长度异常小 → 可能没加载完、需要登录、或内容在折叠区。
-
-### 2. 探选择器（不确定用哪个容器时）
-
-```bash
-chrome-devtools evaluate_script "() => [...document.querySelectorAll('article,main,[role=main],.content')].map(e => ({sel: e.tagName + '.' + e.className.slice(0,40), len: e.innerText.trim().length})).sort((a,b) => b.len - a.len).slice(0,6)"
-```
-
-拿到候选后挑文字量合理的那个。常见站点选择器见 `references/site-selectors.md`。
-
-### 3. 取正文
-
-```bash
-# 注意：--filePath 受 daemon 的 --no-allow-unrestricted-paths 限制，
-# 写 /tmp 或仓库外路径会报 "not within any of the configured workspace roots"。
-# 稳妥做法：直接取 stdout，自己解析出 ```json 代码块里的内容。
-chrome-devtools evaluate_script "() => document.querySelector('<选择器>').outerHTML" \
-  | python3 -c "
-import sys, re, json, pathlib
-raw = sys.stdin.read()
-m = re.search(r'\`\`\`json\s*(.*?)\`\`\`', raw, re.S)
-html = json.loads(m.group(1).strip()) if m else raw
-pathlib.Path('/tmp/body.html').write_text(html, encoding='utf-8')
-print('saved', len(html), 'chars')
-"
-```
-
-取 `outerHTML` 而非 `innerText`——保留结构（标题层级/代码块/表格/公式）交给
-Markdown 转换，比纯文本信息量大。转换用 `markdownify`（`kg-wechat` 的依赖）：
-
-```bash
-python3 -c "
-from markdownify import markdownify as md
-import re, pathlib
-h = pathlib.Path('/tmp/body.html').read_text()
-print(re.sub(r'\n{3,}', '\n\n', md(h, heading_style='ATX', strip=['script','style'])))
-"
-```
-
-### 4. 需要交互才能看全的内容
-
-- **懒加载/无限滚动**：`evaluate_script "() => window.scrollTo(0, document.body.scrollHeight)"` 后等一会再取
-- **折叠/"阅读全文"**：`take_snapshot` 找到按钮 uid → `click` → 重新 `take_snapshot`
-- **分页**：逐页 `navigate_page` + 提取，或点下一页
-- 页面变化后**必须重新 `take_snapshot`**，旧 uid 会失效
-
-### 5. 元信息
-
-```bash
-chrome-devtools evaluate_script "() => {const m = p => (document.querySelector('meta[property=\"'+p+'\"],meta[name=\"'+p+'\"]')||{}).content || ''; return {title: m('og:title') || document.title, site: m('og:site_name'), author: m('author'), published: m('article:published_time')}}"
-```
-
-## 上层 skill 怎么用它
-
-上层（如 `kg-zhihu`）**不该重复实现浏览器控制**，而是：
-1. 引导用户在 Chrome 打开目标页（或用 `navigate_page`）
-2. 用本 skill 的 `evaluate_script` 取正文 HTML
-3. 转 Markdown → 存 `raw/` → 走 `AGENTS.md` 的沉淀流程
-
-站点专属的选择器和坑记在 `references/site-selectors.md`，不要硬编码进脚本。
-
-## 找回看过的内容（历史/书签查找）
-
-用户记得"之前看过一篇讲 XX 的"但没链接时：
-
-```bash
-python3 scripts/find-history.py --keywords <多个同义词> --articles-only
-python3 scripts/find-history.py --keywords 知乎 知识库 wiki --articles-only --days 30
-```
-
-**要点**（详见 `references/history-search.md`）：
-- **AI 主动扩展关键词**——脚本不猜同义词（设计决定：硬编码同义词不可扩展），语义扩展是 AI 的活
-- **找内容默认加 `--articles-only`**——否则混进搜索页/登录页/首页（实测噪声占一半）
-- 拿到候选**让用户确认**，别自己挑
-- 隐私边界：只按关键词匹配、不输出完整历史、不读 cookie、不上传
-
-这个能力和读取能力配合很顺：找到链接 → 用上层 skill（kg-zhihu / kg-doc）读正文 → 沉淀。
-
-## 专题
-
-| 场景 | 读取 |
-|------|------|
-| 各站点正文选择器、已知坑 | `references/site-selectors.md` |
-| 历史/书签查找用法与隐私边界 | `references/history-search.md`，执行 `python3 scripts/find-history.py --keywords ...` |
-| 连接失败、CLI 问题排查 | `references/troubleshooting.md` |
-
-## 边界与注意
-
-- **不做前端调试**：CSS 布局、LCP、内存泄漏、组件树那些用 `fe-chrome-devtools`（那才是它的主场）。
-- **不注入 cookie、不绕登录**：遇到登录墙让用户自己登录。
-- **只读不写**：不要在用户的浏览器里提交表单、点赞、发评论——除非用户明确要求。
-- **大输出写文件**：正文 HTML、snapshot 用 `--filePath`，别直接刷进上下文。
-- **跨平台限制**：本 skill 依赖能访问到用户 Chrome 的 remote debugging。
-  macOS 可用；**WSL2 访问 Windows 侧 Chrome 需要额外配置**（Windows 上的 Chrome 要以
-  `--remote-debugging-port=9222` 启动，WSL 里连 `$(hostname).local:9222` 或 Windows 主机 IP）。
-  配不通时的降级方案：用户手动复制正文，或用浏览器扩展导出 md 后走 `kg-doc`。
-- 每次会话开头必须先跑 `connect-chrome.sh`，否则可能操作到隔离浏览器。
+- 默认只读。提交表单、发布、点赞或发送消息必须有用户明确授权。
+- 遇到银行、验证码或检查 `event.isTrusted` 的操作，让用户手动完成。
+- 跨域 iframe 不能直接操作时，获取 iframe URL 后单独导航。
+- 详细错误处理见 `references/troubleshooting.md`。

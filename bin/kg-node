@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+resolve_link() {
+  local target="$1"
+  while [ -L "$target" ]; do
+    local link
+    link="$(readlink "$target")"
+    case "$link" in
+      /*) target="$link" ;;
+      *) target="$(cd "$(dirname "$target")" && pwd)/$link" ;;
+    esac
+  done
+  printf '%s\n' "$target"
+}
+
+self="$(resolve_link "${BASH_SOURCE[0]}")"
+repo="$(cd "$(dirname "$self")/.." && pwd)"
+
+if [ $# -eq 0 ]; then
+  echo "用法: $(basename "$0") <脚本.mjs> [参数...]" >&2
+  echo "  例: $(basename "$0") kg-vault/scripts/vault-cli.mjs list --json" >&2
+  exit 2
+fi
+
+script="$1"
+shift
+case "$script" in
+  /*) ;;
+  *) script="$repo/$script" ;;
+esac
+
+if [ ! -f "$script" ]; then
+  echo "[错误] 脚本不存在: $script" >&2
+  exit 1
+fi
+
+cd "$(dirname "$script")"
+exec node "$script" "$@"

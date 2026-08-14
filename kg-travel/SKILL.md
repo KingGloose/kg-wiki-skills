@@ -32,7 +32,7 @@ description: 地图与出行 + 天气能力：通过百度地图 Web 服务 API 
 
 **统一用法**：
 ```bash
-python3 <skill>/scripts/baidu_map.py <子命令> <参数>
+../bin/kg-node kg-travel/scripts/baidu-map.mjs <子命令> <参数>
 ```
 坐标统一 **lng,lat** 顺序传入（API 内部自动转 lat,lng）。
 
@@ -91,9 +91,9 @@ python3 <skill>/scripts/baidu_map.py <子命令> <参数>
 
 ```bash
 # 查目的地天气（带 AQI/紫外线/穿衣指数）
-python3 kg-travel/scripts/baidu_map.py weather --city 目的地城市
+../bin/kg-node kg-travel/scripts/baidu-map.mjs weather --city 目的地城市
 # 若跨天/夜游，查 forecast（未来预报）
-python3 kg-travel/scripts/baidu_map.py weather --city 目的地城市 --days 3
+../bin/kg-node kg-travel/scripts/baidu-map.mjs weather --city 目的地城市 --days 3
 ```
 
 根据天气输出「携带清单」：

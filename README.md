@@ -53,7 +53,7 @@ AI 时代，个人笔记的价值变了。
 | skill | 能力 |
 |-------|------|
 | `kg-media-to-text` | **任意素材 → 文字**。按类型分流：PDF→Docling（含 OCR）、Office→MarkItDown、音视频→Whisper |
-| `kg-browser` | 通过 **用户真实 Chrome** 读取需登录态/有反爬的页面；另含本地历史与书签模糊查找 |
+| `kg-browser` | 通过 **Kimi WebBridge + 用户真实 Chrome** 读取需登录态/有反爬的页面；另含本地历史与书签模糊查找 |
 
 ### 捕获与学习
 
@@ -101,8 +101,8 @@ L2  多模态补充     仅对"文字丢了关键信息"的局部（关键帧、
   kg-ingest/    kg-doc/
 ```
 
-**转换能力沉到底层复用，沉淀规则永远归上层。** 上层通过
-`from media_to_text import to_text` 调用底层，不关心内部用了 Docling 还是 Whisper。
+**转换能力沉到底层复用，沉淀规则永远归上层。** Node 入口负责通用编排；
+只有文档/ASR 通过 `media_to_text` Python 后端处理，上层不关心内部用了 Docling 还是 Whisper。
 
 ---
 
@@ -110,12 +110,10 @@ L2  多模态补充     仅对"文字丢了关键信息"的局部（关键帧、
 
 ### 前置
 
-- **Python 3.12+**（脚本用了新语法）
-- **[uv](https://docs.astral.sh/uv/)**
-  - macOS / Linux / WSL2：`curl -LsSf https://astral.sh/uv/install.sh | sh`
-  - Windows：`powershell -c "irm https://astral.sh/uv/install.ps1 | iex"`
+- **Node.js 22.13+**（默认运行时）
+- **Python 3.12+ / [uv](https://docs.astral.sh/uv/)**（仅 B 站、公众号、小宇宙、文档和 ASR 后端需要）
 - **ffmpeg**（仅音视频转写需要）：`brew install ffmpeg` / `sudo apt install ffmpeg` / `winget install ffmpeg`
-- Node.js（仅 `kg-browser` 需要）：`npm i -g chrome-devtools-mcp@latest`
+- **Kimi WebBridge**（仅真实浏览器读取需要）：[WebBridge 帮助](https://www.kimi.com/zh-cn/features/webbridge)
 
 其余依赖由 `kg-install` 按需安装，不用手动装。
 
@@ -140,11 +138,11 @@ AI 能读环境、读报错、判断原因、给对策——这是脚本做不�
 但只想存公众号文章的话 **15MB 就够**。视频/播客多数有现成字幕，
 可以完全跳过转写依赖。
 
-想自己先看看环境状况（纯标准库，无需先装任何东西）：
+想自己先看看环境状况（Node 标准库，无需 Python）：
 
 ```bash
-python3 kg-install/scripts/doctor.py           # 人类可读
-python3 kg-install/scripts/doctor.py --json    # 结构化
+./bin/kg-node kg-install/scripts/doctor.mjs           # 人类可读
+./bin/kg-node kg-install/scripts/doctor.mjs --json    # 结构化
 ```
 
 ### 平台支持
@@ -164,27 +162,24 @@ CUDA/cuDNN 配置比原生省事。
 **已经有一堆笔记？** 先用 `kg-init` 归一化（会先给你看计划再动手）：
 
 ```bash
-cd kg-init && source ../.venv/bin/activate
-python scripts/analyze_notes.py ~/my-notes      # 1. 体检
-python scripts/migrate.py plan ~/my-notes       # 2. 看计划（只读）
-python scripts/migrate.py apply ~/my-notes --confirm   # 3. 确认后执行
+./bin/kg-node kg-init/scripts/analyze-notes.mjs ~/my-notes      # 1. 体检
+./bin/kg-node kg-init/scripts/migrate.mjs plan ~/my-notes       # 2. 看计划（只读）
+./bin/kg-node kg-init/scripts/migrate.mjs apply ~/my-notes --confirm   # 3. 确认后执行
 ```
 
 **从零开始**：先用 `kg-init` 建结构；**已有标准结构**：直接用 `kg-vault` 注册。
 
 ```bash
-source .venv/bin/activate
-
-python kg-init/scripts/migrate.py apply ~/my-vault --confirm
-python kg-vault/scripts/vault_cli.py add ~/my-vault
-python kg-vault/scripts/vault_cli.py which
+./bin/kg-node kg-init/scripts/migrate.mjs apply ~/my-vault --confirm
+./bin/kg-node kg-vault/scripts/vault-cli.mjs add ~/my-vault
+./bin/kg-node kg-vault/scripts/vault-cli.mjs which
 ```
 
 底层的**四级解析**（所有 skill 通用，前面命中就不往下找）：
 
 ```bash
 # 1. 命令行显式指定（临时覆盖，优先级最高）
-python scripts/xxx.py --vault /path/to/vault
+./bin/kg-node kg-ask/scripts/search-vault.mjs "关键词" --vault /path/to/vault
 
 # 2. 环境变量
 export KG_VAULT=/path/to/your-vault
@@ -210,19 +205,19 @@ export KG_VAULT=/path/to/your-vault
 }
 ```
 
-切换用 `--vault /path/to/work-vault`，或改 `default`。
-`add` 只注册路径，不替用户选择默认库。只注册了一个有效库时会直接使用；
-注册了多个却没有默认库时，脚本会要求用户选择，不会静默选择第一个。
+业务调用用 `--vault /path/to/work-vault` 显式指定。
+`add` 只注册路径，不替用户选择默认库；多库时 AI 读取各库 `desc` 自动分类，
+不会静默选择第一个，也不会把分类工作重新丢给用户。
 
-> **找不到知识库时**，脚本不会瞎猜路径，而是提示 AI **直接问用户**，
+> **完全没配置或路径都失效时**，脚本不会瞎猜路径，而是提示 AI **直接问用户**，
 > 拿到路径后用 `kg-vault` 注册：
 > ```bash
-> python kg-vault/scripts/vault_cli.py add /path/to/vault
+> ./bin/kg-node kg-vault/scripts/vault-cli.mjs add /path/to/vault --desc "这个库的用途"
 > ```
 
 ### 不需要放进知识库
 
-工具**不必**软链或复制到知识库目录里。注册到 `~/.agents/skills/` 即可，
+工具**不必**软链或复制到知识库目录里。Piko 项目把它注册到自身 `.agents/skills/` 即可，
 AI 在任何工作目录都能发现并调用；库的位置靠上面的解析机制确定。
 **知识库保持纯粹——只放知识。**
 
@@ -242,8 +237,8 @@ your-vault/
 没有现成的库？用 `kg-init` 建（空目录也行）：
 
 ```bash
-cd kg-init && python scripts/migrate.py apply ~/my-vault --confirm
-cd ../kg-vault && python scripts/vault_cli.py add ~/my-vault    # 再注册
+./bin/kg-node kg-init/scripts/migrate.mjs apply ~/my-vault --confirm
+./bin/kg-node kg-vault/scripts/vault-cli.mjs add ~/my-vault    # 再注册
 ```
 
 模板在 `kg-init/templates/`（`AGENTS.md` / `index.md` / `log.md`），
@@ -263,8 +258,8 @@ cd ../kg-vault && python scripts/vault_cli.py add ~/my-vault    # 再注册
 **faster-whisper 不支持 Apple MPS**，在 Mac 上只能 CPU 干跑。所以两个平台用不同后端，
 `kg-media-to-text` 内部会**自动检测平台选择**，上层代码无需关心。
 
-`kg-browser` 在 WSL2 下访问 Windows 侧 Chrome 需要额外配置（见其
-`references/troubleshooting.md`），配不通有手动降级方案。
+`kg-browser` 通过 Kimi WebBridge 连接用户真实 Chrome；WSL2 与 Windows 分开运行时，
+按 `kg-browser/references/troubleshooting.md` 检查守护进程和扩展连接。
 
 ---
 
@@ -275,7 +270,7 @@ cd ../kg-vault && python scripts/vault_cli.py add ~/my-vault    # 再注册
 | `kg-media-to-text`（文档） | `base` + `doc` |
 | `kg-media-to-text`（转写） | `base` + `asr-mac` 或 `asr-linux` + ffmpeg |
 | `kg-doc` | `base` + `doc` |
-| `kg-browser` | 无 Python 依赖；需 `chrome-devtools-mcp` CLI |
+| `kg-browser` | Node.js + Kimi WebBridge；无 Python 依赖 |
 | `kg-travel` | 无额外依赖（纯标准库）；AK 在 `~/.kg-agent-config/credentials.json` |
 | `kg-install` / `kg-vault` / `kg-init` / `kg-ask` / `kg-lint` / `kg-review` / `kg-learn` / `kg-capture` | 无额外依赖（纯标准库） |
 
@@ -284,21 +279,21 @@ cd ../kg-vault && python scripts/vault_cli.py add ~/my-vault    # 再注册
 ## 用法示例
 
 ```bash
-cd kg-wiki-skills && source .venv/bin/activate
+cd skills/kg-wiki-skills
 
 # 首次：告诉它你的库在哪
-cd kg-vault && python scripts/vault_cli.py add /path/to/your-vault
+./bin/kg-node kg-vault/scripts/vault-cli.mjs add /path/to/your-vault --desc "这个库的用途"
 
 # 摄入
-cd kg-doc      && python scripts/ingest_doc.py ~/Downloads/paper.pdf
-cd kg-doc      && python scripts/ingest_doc.py ~/papers --batch
-python kg-ingest/references/youtube/ingest_video.py "https://youtube.com/watch?v=xxx"
-python kg-ingest/references/bilibili/search_videos.py "Rust 异步" --order click --min-min 8
+./bin/kg-py kg-doc/scripts/ingest_doc.py ~/Downloads/paper.pdf
+./bin/kg-py kg-doc/scripts/ingest_doc.py ~/papers --batch
+./bin/kg-node kg-ingest/references/youtube/ingest-video.mjs "https://youtube.com/watch?v=xxx"
+./bin/kg-py kg-ingest/references/bilibili/search_videos.py "Rust 异步" --order click --min-min 8
 
 # 使用
-cd kg-ask    && python scripts/search_vault.py "泛域名 证书"
-cd kg-review && python scripts/pick_review.py --count 3
-cd kg-lint   && python scripts/lint_vault.py
+./bin/kg-node kg-ask/scripts/search-vault.mjs "泛域名 证书"
+./bin/kg-node kg-review/scripts/pick-review.mjs --count 3
+./bin/kg-node kg-lint/scripts/lint-vault.mjs
 ```
 
 多数 skill 的实际使用是**对话式的**——直接对 AI 说「解析这个视频 <链接>」
@@ -327,14 +322,15 @@ cd kg-lint   && python scripts/lint_vault.py
 ## 兼容性
 
 - 在 **Claude Code / pi** 等支持 Agent Skills（`SKILL.md` + frontmatter）的环境下开箱可用
-- skill 发现：把本仓库软链到 `~/.agents/skills/`，含 `SKILL.md` 的目录会被递归发现
+- skill 发现：Piko 默认把本仓库软链到项目 `.agents/skills/`，含 `SKILL.md` 的目录会被递归发现；需要跨项目共享时也可另建用户级软链
 
   ```bash
-  ln -s "$(pwd)" ~/.agents/skills/kg-wiki-skills     # Claude Code 用 ~/.claude/skills/
+  mkdir -p .agents/skills
+  ln -s ../../skills/kg-wiki-skills .agents/skills/kg-wiki-skills
   ```
 
   软链名称可以自定；各 skill 的命令都相对自身位置解析，不依赖软链名或调用时的工作目录。
-- 脚本本身是普通 Python CLI，也可脱离 Agent 直接调用
+- 脚本以 Node CLI 为主；文档解析、语音转写和少数平台适配保留 Python 后端，均可脱离 Agent 直接调用
 
 ## 许可
 

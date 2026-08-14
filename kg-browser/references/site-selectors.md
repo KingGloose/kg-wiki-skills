@@ -19,7 +19,7 @@
 
 **坑**：
 - 回答默认**折叠**，`.RichContent` 上有 `is-collapsed` 类。先点"阅读全文"
-  （`take_snapshot` 找按钮 → `click`）或直接执行
+（`snapshot` 找 `@e` 按钮 → `click`）或用 `evaluate` 执行
   `() => document.querySelectorAll('.ContentItem-expandButton').forEach(b => b.click())` 再取。
 - 问题页是**无限滚动**，只加载前几条回答。需要更多就滚动后再取。
 - 公式是 `<img>` 带 LaTeX 在 `alt`/`data-formula` 属性里；想保留公式要单独处理这些属性，
@@ -73,7 +73,7 @@
 站点没记录时的顺序：
 1. `article` → `main` → `[role="main"]` → `.content` / `#content`
 2. 都不中，用 SKILL.md 的"探选择器"片段按文字量排序挑
-3. 仍不行 → 可能是 iframe（先 `list_pages` 看有没有子框架）或 Shadow DOM
+3. 仍不行 → 可能是 iframe（先查 iframe URL）或 Shadow DOM
    （`el.shadowRoot.innerHTML`）
 
 ## 更新约定

@@ -263,7 +263,7 @@ def find_vault(hint: str | Path | None = None,
         "\n【给 AI 的指示】不要猜测路径，直接问用户：「你的知识库在哪个目录？」\n"
         "拿到路径后用下面任一方式继续：\n"
         "  1. 本次临时：   加 --vault /path/to/vault 参数\n"
-        "  2. 长期注册：   python kg-vault/scripts/vault_cli.py add /path/to/vault\n"
+        "  2. 长期注册：   node kg-vault/scripts/vault-cli.mjs add /path/to/vault\n"
         "  3. 环境变量：   export KG_VAULT=/path/to/vault\n"
         "\n知识库需包含 AGENTS.md 和 wiki/ 目录。"
         "\n没有现成的库？先用 kg-init 建库，再用 kg-vault 注册路径。"

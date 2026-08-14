@@ -19,31 +19,25 @@
 
 ## 环境
 
-- 底层：见 `../../../kg-browser/SKILL.md`（需 `chrome-devtools` CLI + Chrome 开 remote debugging）
+- 底层：见 `../../../kg-browser/SKILL.md`（需 Kimi WebBridge + 真实 Chrome）
 - 转 Markdown：`markdownify`（`requirements/wechat.txt` 里已有）
 
 ## 工作流
 
-### 第 1 步：连接浏览器（每次会话首次）
+### 第 1 步：建立任务会话
 
 ```bash
-bash ../../../kg-browser/scripts/connect-chrome.sh
+../../../bin/kg-node kg-browser/scripts/kimi-bridge.mjs list_tabs --session wiki-zhihu-capture
 ```
 
-> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
-> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
->
-> 嫌麻烦可用 `../../../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../../../bin/kg-py kg-ingest/references/zhihu/<脚本>.py [参数]`
-
-连接脚本成功前不要跑任何页面命令（否则会操作到没有登录态的隔离浏览器）。
+同一次知乎摄入一直使用 `wiki-zhihu-capture` session。客户端会在需要时启动守护进程；返回 `no extension connected` 时让用户连接 Chrome 扩展。
 
 ### 第 1.5 步：用户只记得内容、没有链接时
 
 先从本地 Chrome 历史/书签找：
 
 ```bash
-python3 ../../../kg-browser/scripts/find-history.py --keywords 知乎 <主题词> --articles-only
+../../../bin/kg-node kg-browser/scripts/find-history.mjs --keywords 知乎 <主题词> --articles-only
 ```
 
 AI 应主动扩展同义词提高命中（如用户说"讲知识库那篇"→ `知识库 wiki 笔记 knowledge`）。
@@ -51,8 +45,12 @@ AI 应主动扩展同义词提高命中（如用户说"讲知识库那篇"→ `�
 
 ### 第 2 步：打开目标页
 
-用户可能已经在浏览器里打开了 —— 先 `chrome-devtools list_pages` 看一眼，别急着导航覆盖。
-没打开则 `chrome-devtools new_page "<知乎链接>"`。
+用户已打开目标页且链接已知时，用 `find_tab "<完整 URL>" --active`借用当前页。否则用：
+
+```bash
+../../../bin/kg-node kg-browser/scripts/kimi-bridge.mjs navigate "<知乎链接>" \
+  --new-tab --group-title "知乎摄入" --session wiki-zhihu-capture
+```
 
 ### 第 3 步：按页面类型取正文
 
@@ -67,12 +65,16 @@ AI 应主动扩展同义词提高命中（如用户说"讲知识库那篇"→ `�
 
 **处理折叠**（回答页常见）：
 ```bash
-chrome-devtools evaluate_script "() => {document.querySelectorAll('.ContentItem-expandButton').forEach(b => b.click()); return document.querySelectorAll('.ContentItem-expandButton').length}"
+../../../bin/kg-node kg-browser/scripts/kimi-bridge.mjs evaluate \
+  "(() => {const b=[...document.querySelectorAll('.ContentItem-expandButton')]; b.forEach(x=>x.click()); return b.length})()" \
+  --session wiki-zhihu-capture
 ```
 
 **取正文 HTML**（保留结构，别取 innerText）：
 ```bash
-chrome-devtools evaluate_script "() => document.querySelector('<选择器>').outerHTML" --filePath /tmp/zhihu.html
+../../../bin/kg-node kg-browser/scripts/kimi-bridge.mjs evaluate \
+  "(() => document.querySelector('<选择器>')?.outerHTML ?? '')()" \
+  --session wiki-zhihu-capture
 ```
 
 **知乎特有的两个处理**：
@@ -107,5 +109,4 @@ chrome-devtools evaluate_script "() => document.querySelector('<选择器>').out
 - **不批量爬**：一次处理用户指定的内容。批量抓取知乎违反 ToS 且有账号风险。
 - **ToS 提示**：用登录态读取内容严格说违反知乎服务协议。只读自己可见内容、不批量、
   不商用，实际风险低，但用户应知晓这点。
-- 跨平台限制见 `../../../kg-browser/references/troubleshooting.md`（WSL 需额外配置，
-  配不通有手动降级方案）。
+- 连接和扩展排查见 `../../../kg-browser/references/troubleshooting.md`。

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 批量把仓库里的图片压成 WebP，并输出「旧路径 -> 新路径」映射表供 fix-refs.py 改引用。
+# 批量把仓库里的图片压成 WebP，并输出「旧路径 -> 新路径」映射表供 fix-refs.mjs 改引用。
 #
 # 用法:
 #   scripts/compress-images.sh [目标目录]        # 默认仓库根
@@ -90,47 +90,23 @@ export REPO_ROOT DRY_RUN WEBP_QUALITY MAX_WIDTH GIF_QUALITY GIF_MAX_WIDTH
 RESULTS=$(mktemp); trap 'rm -f "$LIST" "$RESULTS"' EXIT
 xargs -0 -P "$JOBS" -I{} bash -c 'process_one "$@"' _ {} < "$LIST" > "$RESULTS"
 
-python3 - "$RESULTS" "$MAP_FILE" "$DRY_RUN" <<'PY'
-import sys, os
-res, mapfile, dry = sys.argv[1], sys.argv[2], sys.argv[3] == '1'
-ok = skip = 0
-orig_total = new_total = 0
-rows = []
-with open(res, 'rb') as f:
-    for rec in f.read().split(b'\0'):
-        if not rec.strip():
-            continue
-        parts = rec.decode('utf-8', 'surrogateescape').split('\t')
-        if len(parts) != 5:
-            continue
-        status, o, n, old, new = parts
-        orig_total += int(o)
-        new_total += int(n)
-        if status == 'OK':
-            ok += 1
-            if old != new:
-                rows.append((old, new))
-        else:
-            skip += 1
-
-def h(b):
-    for u in ('B', 'KB', 'MB', 'GB'):
-        if b < 1024 or u == 'GB':
-            return f'{b:.1f} {u}'
-        b /= 1024
-
-if not dry:
-    with open(mapfile, 'w', encoding='utf-8') as f:
-        for old, new in rows:
-            f.write(f'{old}\t{new}\n')
-
-print(f'压缩成功 {ok} 张，跳过(压不动/失败) {skip} 张')
-print(f'原始 {h(orig_total)}  ->  现在 {h(new_total)}', end='')
-if orig_total:
-    print(f'   (剩 {new_total*100/orig_total:.1f}%, 省 {h(orig_total-new_total)})')
-else:
-    print()
-if not dry:
-    print(f'改名映射 {len(rows)} 条 -> {mapfile}')
-    print('下一步: python3 scripts/fix-refs.py')
-PY
+node - "$RESULTS" "$MAP_FILE" "$DRY_RUN" <<'JS'
+const fs = require("node:fs");
+const [results, mapFile, dryValue] = process.argv.slice(2);
+const dry = dryValue === "1";
+let ok = 0, skip = 0, original = 0, current = 0;
+const rows = [];
+for (const record of fs.readFileSync(results).toString("utf8").split("\0")) {
+  if (!record.trim()) continue;
+  const [status, before, after, oldPath, newPath] = record.split("\t");
+  if (newPath == null) continue;
+  original += Number(before); current += Number(after);
+  if (status === "OK") { ok += 1; if (oldPath !== newPath) rows.push([oldPath, newPath]); }
+  else skip += 1;
+}
+const human = (bytes) => { let value = bytes; for (const unit of ["B", "KB", "MB", "GB"]) { if (value < 1024 || unit === "GB") return `${value.toFixed(1)} ${unit}`; value /= 1024; } };
+if (!dry) fs.writeFileSync(mapFile, rows.map(([oldPath, newPath]) => `${oldPath}\t${newPath}`).join("\n") + (rows.length ? "\n" : ""));
+console.log(`压缩成功 ${ok} 张，跳过(压不动/失败) ${skip} 张`);
+console.log(`原始 ${human(original)}  ->  现在 ${human(current)}${original ? `   (剩 ${(current * 100 / original).toFixed(1)}%, 省 ${human(original - current)})` : ""}`);
+if (!dry) { console.log(`改名映射 ${rows.length} 条 -> ${mapFile}`); console.log("下一步: node scripts/fix-refs.mjs"); }
+JS

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 用本仓库 .venv 里的 python 跑脚本 —— 不需要先激活 venv，也不需要知道仓库在哪。
+# 用本仓库 .venv 里的 Python 跑保留后端 —— 不需要先激活 venv，也不需要知道仓库在哪。
 #
 # 为什么要有这个：
 #   skill 通常通过软链被发现（如 ~/.agents/skills/kg -> /path/to/kg-wiki-skills），
@@ -38,15 +38,16 @@ else
   cat >&2 <<EOF
 [错误] 找不到虚拟环境: $REPO/.venv
 
-  还没装环境。让 AI 唤起 kg-install，或先自己体检：
-    python3 "$REPO/kg-install/scripts/doctor.py"
+  Node 核心能力不依赖 Python；当前脚本属于保留的 Python 后端。
+  让 AI 唤起 kg-install 按需安装，或先运行体检：
+    "$REPO/bin/kg-node" kg-install/scripts/doctor.mjs
 EOF
   exit 1
 fi
 
 if [ $# -eq 0 ]; then
   echo "用法: $(basename "$0") <脚本.py> [参数...]" >&2
-  echo "  例: $(basename "$0") kg-ask/scripts/search_vault.py \"关键词\"" >&2
+  echo "  例: $(basename "$0") kg-doc/scripts/ingest_doc.py ~/Downloads/paper.pdf" >&2
   exit 2
 fi
 
@@ -63,4 +64,5 @@ fi
 
 # 多数脚本会相对自身定位资源，工作目录用脚本所在目录最安全
 cd "$(dirname "$SCRIPT")"
+export PYTHONPATH="$REPO/kg-media-to-text${PYTHONPATH:+:$PYTHONPATH}"
 exec "$PY" "$SCRIPT" "$@"
