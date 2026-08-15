@@ -19,7 +19,7 @@ from pathlib import Path
 from ..types import SourceKind, TextResult, MissingDependencyError, MediaToTextError
 
 DEFAULT_MODEL_MAC = "mlx-community/whisper-large-v3-turbo"
-DEFAULT_MODEL_LINUX = "large-v3"
+DEFAULT_MODEL_LINUX = "large-v3-turbo"
 
 # Whisper 作为自回归模型会随机陷入「无标点模式」，中文尤其严重（实测 2 分钟中文
 # 播客片段标点数为 0，整段几万字连成一串，人类不可读）。社区通用解法是用
@@ -293,14 +293,10 @@ def _transcribe_faster(
     name = model or DEFAULT_MODEL_LINUX
     # 优先 GPU(float16)，失败降级 CPU(int8)。降级原因会写进 metadata，
     # 不静默吞掉——否则用户不知道为何突然变慢。
+    m, device = _get_model(name)
     gpu_error = None
-    try:
-        m = WhisperModel(name, device="cuda", compute_type="float16")
-        device = "cuda"
-    except Exception as e:
-        gpu_error = f"{type(e).__name__}: {e}"[:200]
-        m = WhisperModel(name, device="cpu", compute_type="int8")
-        device = "cpu"
+    if device == "cpu":
+        gpu_error = "CUDA 不可用，降级 CPU(int8)"
 
     prompt = _build_prompt(language, initial_prompt, hotwords)
     segments, info = m.transcribe(
@@ -319,6 +315,31 @@ def _transcribe_faster(
     if gpu_error:
         meta["gpu_fallback_reason"] = gpu_error
     return text, meta
+
+
+# 进程内模型缓存：连续转写不重复加载（首次加载约 1-2s）。
+# 按 (模型, 设备, 精度) 分键，CPU 降级不污染 GPU 缓存。
+_MODEL_CACHE: dict[tuple[str, str, str], tuple[WhisperModel, str]] = {}
+
+
+def _get_model(name: str) -> tuple[WhisperModel, str]:
+    """按 (name, cuda, float16) → (name, cpu, int8) 顺序取可用模型，带缓存。"""
+    from faster_whisper import WhisperModel
+
+    for key in ((name, "cuda", "float16"), (name, "cpu", "int8")):
+        cached = _MODEL_CACHE.get(key)
+        if cached:
+            return cached
+        try:
+            m = WhisperModel(key[0], device=key[1], compute_type=key[2])
+            entry = (m, key[1])
+            _MODEL_CACHE[key] = entry
+            return entry
+        except Exception:
+            continue
+    # 理论上不会到这儿：cpu+int8 兜底过；万一也挂，抛原始错误给调用方。
+    raise RuntimeError(f"faster-whisper 模型加载失败: {name}")
+
 
 
 def handle_audio_video(

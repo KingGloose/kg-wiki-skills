@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -196,12 +197,146 @@ async function postCommand(command, env = process.env) {
 }
 
 export async function sendCommand(command, env = process.env) {
+  if (_wsMode === true) return sendWsCommand(command, env);
   try {
-    return await postCommand(command, env);
+    const response = await postCommand(command, env);
+    _wsMode = false;
+    return response;
   } catch (error) {
-    if (!isConnectionFailure(error)) throw error;
-    startDaemon(env);
-    return postCommand(command, env);
+    // HTTP /command 不可用（426 Upgrade Required / 连接失败）时切 WebSocket MCP 传输。
+    if (!isConnectionFailure(error) && !/426|非 JSON|Upgrade Required/i.test(String(error.message))) {
+      throw error;
+    }
+    _wsMode = true;
+    return sendWsCommand(command, env);
+  }
+}
+
+// ─── WebSocket (MCP) 传输 ──────────────────────────────
+// 官方守护进程走 HTTP POST /command；npm 版 kimi-webbridge 走
+// WebSocket MCP（ws://127.0.0.1:10086/ws）。这里自动探测：HTTP 不可用时
+// 切到 WS，本进程后续直接走 WS（服务端常驻 Windows 侧时用 WS_URL 指向）。
+// 服务端可能在 WSL(localhost)或 Windows(默认网关, WSL2 NAT)。自动探测。
+function guessWsUrl() {
+  // 1. 本机 localhost —— 服务端跑在 WSL 内
+  const candidates = ["ws://127.0.0.1:10086/ws"];
+  // 2. WSL2 默认网关 = Windows 宿主 —— 服务端跑在 Windows(Chrome 扩展直连)
+  try {
+    const route = readFileSync("/proc/net/route", "utf8");
+    for (const line of route.split("\n").slice(1)) {
+      const parts = line.trim().split(/\s+/);
+      if (parts[0] && parts[1] === "00000000" && parts[2]) {
+        const gw = parts[2];
+        const ip = [3, 2, 1, 0].map((i) => parseInt(gw.slice(i * 2, i * 2 + 2), 16)).join(".");
+        candidates.push(`ws://${ip}:10086/ws`);
+      }
+    }
+  } catch {}
+  return candidates;
+}
+
+let _wsMode = null; // null=未知, true=已切 WS, false=HTTP 可用
+
+function mapToMcp(command) {
+  const { action, args } = command;
+  let tool = action;
+  let mcpArgs = { ...args };
+  if (action === "click" && typeof args.selector === "string" && args.selector.startsWith("@")) {
+    tool = "snapshot_click";
+    mcpArgs = { ref: args.selector };
+  } else if (action === "close_session") {
+    tool = "close_tab";
+    mcpArgs = {};
+  } else if (action === "cdp") {
+    throw new Error("cdp 命令不支持 WebBridge MCP 传输");
+  } else if (action === "screenshot" || action === "save_as_pdf") {
+    // MCP 版返回 base64 不落盘，--path 仅作文件名提示
+    if (action === "save_as_pdf" && args.path) {
+      mcpArgs.file_name = String(args.path).split(/[\\/]/).pop();
+    }
+    delete mcpArgs.path;
+  }
+  return { tool, args: mcpArgs };
+}
+
+function ensureWebbridgeOnWindows(waitMs) {
+  try {
+    const script = new URL("./ensure-webbridge.mjs", import.meta.url).pathname;
+    const r = spawnSync(process.execPath, [script, String(waitMs), "--json"], {
+      encoding: "utf8",
+      timeout: waitMs + 10_000,
+    });
+    const parsed = JSON.parse(r.stdout || "{}");
+    if (!parsed.ok) {
+      process.stderr.write(`[kimi-bridge] 自动拉起 WebBridge 失败: ${parsed.error || "未知"}\n`);
+    }
+    return parsed.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function connectFirst(candidates) {
+  let lastErr;
+  for (const wsUrl of candidates) {
+    try {
+      const ws = new WebSocket(wsUrl);
+      await new Promise((resolve, reject) => {
+        ws.onopen = resolve;
+        ws.onerror = () => reject(new Error("connect failed"));
+      });
+      return ws;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw new Error(`WebBridge 服务不可达（试过: ${candidates.join(", ")}）: ${lastErr?.message || ""}`);
+}
+
+async function sendWsCommand(command, env = process.env) {
+  // WebBridge 自研协议：单条 tool_call 消息 → tool_result 响应（非标准 MCP）。
+  const candidates = env.KIMI_WEBBRIDGE_WS || env.WS_URL
+    ? [env.KIMI_WEBBRIDGE_WS || env.WS_URL]
+    : guessWsUrl();
+  let ws;
+  try {
+    ws = await connectFirst(candidates);
+  } catch (error) {
+    // 服务不可达：自动拉起 Windows 侧服务端（WSL interop），再重试一次。
+    ensureWebbridgeOnWindows(20_000);
+    ws = await connectFirst(candidates);
+  }
+  const { tool, args } = mapToMcp(command);
+  const requestId = crypto.randomUUID();
+  try {
+    const result = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`WebBridge 工具 ${tool} 调用超时（120s）`)), 120_000);
+      ws.onmessage = (ev) => {
+        let msg;
+        try {
+          msg = JSON.parse(ev.data);
+        } catch {
+          return;
+        }
+        if (msg?.type !== "tool_result" || msg.responseToRequestId !== requestId) return;
+        clearTimeout(timer);
+        if (msg.payload?.error) reject(new Error(msg.payload.error));
+        else resolve(msg.payload?.data ?? {});
+      };
+      ws.onerror = (e) => reject(new Error(`WebSocket 错误: ${e?.message || "未知"}`));
+      ws.send(JSON.stringify({ type: "tool_call", requestId, payload: { name: tool, args } }));
+    });
+    // 扩展返回的 data 可能是 JSON 字符串或对象
+    if (typeof result === "string") {
+      try {
+        return JSON.parse(result);
+      } catch {
+        return { ok: true, data: result };
+      }
+    }
+    return result;
+  } finally {
+    ws.close();
   }
 }
 

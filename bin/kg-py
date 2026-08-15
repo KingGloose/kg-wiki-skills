@@ -30,6 +30,18 @@ resolve() {
 SELF="$(resolve "${BASH_SOURCE[0]}")"
 REPO="$(cd "$(dirname "$SELF")/.." && pwd)"
 
+# WSL2: ctranslate2 的 CUDA wheel 不捆系统库，需指向 pip 装的 cuBLAS/cuDNN。
+# 无 nvidia 包或非 Linux 时静默跳过（CPU 路径不受影响）。
+if [ "$(uname -s)" = "Linux" ]; then
+  NV_LIBS=""
+  for libdir in \
+    "$REPO/.venv/lib/python3.12/site-packages/nvidia/cublas/lib" \
+    "$REPO/.venv/lib/python3.12/site-packages/nvidia/cudnn/lib"; do
+    [ -d "$libdir" ] && NV_LIBS="$NV_LIBS:$libdir"
+  done
+  [ -n "$NV_LIBS" ] && export LD_LIBRARY_PATH="${NV_LIBS#:}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+fi
+
 if [ -x "$REPO/.venv/bin/python" ]; then
   PY="$REPO/.venv/bin/python"
 elif [ -x "$REPO/.venv/Scripts/python.exe" ]; then
