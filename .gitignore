@@ -27,3 +27,6 @@ qrcode.png
 
 # 各 skill 的运行时状态与凭据（token / 缓存 / 游标）
 **/.state/
+
+# 依赖
+node_modules/

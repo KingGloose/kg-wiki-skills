@@ -288,7 +288,7 @@ cd skills/kg-wiki-skills
 ./bin/kg-py kg-doc/scripts/ingest_doc.py ~/Downloads/paper.pdf
 ./bin/kg-py kg-doc/scripts/ingest_doc.py ~/papers --batch
 ./bin/kg-node kg-ingest/references/youtube/ingest-video.mjs "https://youtube.com/watch?v=xxx"
-./bin/kg-py kg-ingest/references/bilibili/search_videos.py "Rust 异步" --order click --min-min 8
+./bin/kg-node kg-bilibili/scripts/bili.mjs search "Rust 异步"
 
 # 使用
 ./bin/kg-node kg-ask/scripts/search-vault.mjs "泛域名 证书"

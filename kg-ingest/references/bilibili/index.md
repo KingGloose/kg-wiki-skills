@@ -1,5 +1,10 @@
 # kg-bilibili · B 站视频消化 skill
 
+> **底层已切换**：旧的 Python 脚本（login.py / list_videos.py / search_videos.py /
+> get_transcript.py）已删除——它们底层用已关停的 `bilibili-api`。
+> 现在统一用 **kg-bilibili skill**（Node，`@renmu/bili-api`），完整子命令和登录流程
+> 见 [`../../kg-bilibili/SKILL.md`](../../kg-bilibili/SKILL.md)。
+
 把用户稍后再看/收藏里的视频，抓成文字，让 AI 解析，最终按 `AGENTS.md` 的 Ingest 流程沉淀进 `wiki/`。
 
 ## 何时用
@@ -9,109 +14,39 @@
 - 「帮我找找讲 X 的视频」「有没有关于 X 的好视频」→ 形态 3(主动搜索)
 - 「我稍后再看里有啥值得看的」→ 只列表 + 筛选
 
-## 前置：环境准备
+## 脚本（用 kg-bilibili）
 
-**环境已统一到 `skills/.venv`，安装步骤见 [`../../../README.md`](../../../README.md)。**
-本 skill 需要：`base` + `bilibili`（无字幕视频要转写则额外 `asr-mac`/`asr-linux` + 底层库 + ffmpeg）。
-
-```bash
-# 路径相对本 SKILL.md 所在目录（AI 会自动解析成绝对路径）
-source ../../../.venv/bin/activate
-```
-
-> **手动执行时**先 `cd` 到本 skill 目录。Windows PowerShell 用
-> `..\.venv\Scripts\Activate.ps1`，CMD 用 `..\.venv\Scripts\activate.bat`。
->
-> 嫌麻烦可用 `../../../bin/kg-py`，它自己找环境，无需激活也无需 cd：
-> `../../../bin/kg-py kg-ingest/references/bilibili/<脚本>.py [参数]`
-
-### 配置 cookie（跨平台通用，一次性）
-
-个人数据(稍后再看/收藏)和字幕都需要 B 站登录态。有两种方式，任选其一：
-
-**方式 A：扫码登录（推荐，最省事）**
+完整子命令见 [`kg-bilibili/SKILL.md`](../../kg-bilibili/SKILL.md)。本 skill 常用的几个：
 
 ```bash
-../../../bin/kg-py kg-ingest/references/bilibili/login.py
-```
-
-运行后会在 skill 目录生成 `qrcode.png`（同时终端也打印 ANSI 二维码）。用手机 B 站 APP 扫码确认，脚本自动把 cookie 写进 `.env`，成功后删掉二维码图片。终端 ANSI 二维码在部分环境无法扫描时，直接打开 `qrcode.png` 扫即可。
-
-**方式 B：手动填 `.env`**
-
-1. 浏览器登录 B 站 → F12 → Application → Cookies → `https://www.bilibili.com`
-2. 复制 `SESSDATA`(必填)、`bili_jct`、`buvid3` 的值
-3. 复制模板并填入：
-
-```bash
-cp .env.example .env    # Windows: copy .env.example .env
-```
-
-4. 编辑 `.env` 填三个值。
-
-> `SESSDATA` 有效期约一个月，报鉴权错误时重新扫码（方式 A）或重填一次即可。
-> 迁移新机器：`.env` 不进 git，需在新机器重新扫码/填一次（或手动拷过去）。
-
-## 脚本用法
-
-所有命令先激活环境（见上方「环境」一节）。脚本 stdout 是纯 JSON/文本，进度打在 stderr。
-
-```bash
-# 扫码登录（首次/换机器/cookie 过期时）
-../../../bin/kg-py kg-ingest/references/bilibili/login.py
-
-# 稍后再看列表
-../../../bin/kg-py kg-ingest/references/bilibili/list_videos.py toview
-
-# 我的所有收藏夹（拿 media_id）
-../../../bin/kg-py kg-ingest/references/bilibili/list_videos.py favlist
-
-# 某个收藏夹内容（media_id 来自上一步），可带页码
-../../../bin/kg-py kg-ingest/references/bilibili/list_videos.py fav <media_id> [页数]
-
-# 按关键词搜索全站视频（不依赖稍后再看/收藏）
-../../../bin/kg-py kg-ingest/references/bilibili/search_videos.py "<关键词>"
-../../../bin/kg-py kg-ingest/references/bilibili/search_videos.py "Rust 异步" --order click --limit 10
-../../../bin/kg-py kg-ingest/references/bilibili/search_videos.py "AI Agent" --order pubdate --days 365 --min-min 8 --max-min 60
-
-#   --order  totalrank(综合,默认) / click(播放多) / pubdate(最新) / dm(弹幕多) / stow(收藏多) / scores(评论多)
-#   --days N       只要最近 N 天发布的
-#   --min-min N    最短时长(分钟)，过滤太短没肉的
-#   --max-min N    最长时长(分钟)
-#   --limit N      最多返回几条(默认 20)
-#   --page N       翻页
-
-# 抓某个视频的字幕（纯文本）
-../../../bin/kg-py kg-ingest/references/bilibili/get_transcript.py <bvid或视频URL>
-
-# 抓字幕（结构化 JSON，含分P/分区/简介）
-../../../bin/kg-py kg-ingest/references/bilibili/get_transcript.py <bvid或视频URL> --json
-
-# 无字幕视频：下音频本地 ASR 转写（需 asr 依赖 + ffmpeg，约 12 倍实时）
-../../../bin/kg-py kg-ingest/references/bilibili/get_transcript.py <bvid> --asr
-../../../bin/kg-py kg-ingest/references/bilibili/get_transcript.py <bvid> --asr --model large-v3
-
-# ASR 时补专名热词（降低误识）。UP主名会自动当"说话人"，标题+简介自动抽专名。
-../../../bin/kg-py kg-ingest/references/bilibili/get_transcript.py <bvid> --asr --hotword Transformer --hotword-speaker 张鑫旭
+../../../bin/kg-node kg-bilibili/scripts/bili.mjs toview            # 稍后再看列表
+../../../bin/kg-node kg-bilibili/scripts/bili.mjs favlist           # 收藏夹列表
+../../../bin/kg-node kg-bilibili/scripts/bili.mjs search "<关键词>"  # 搜索
+../../../bin/kg-node kg-bilibili/scripts/bili.mjs subtitle <bvid>   # 抓字幕
+../../../bin/kg-node kg-bilibili/scripts/bili.mjs asr <音频文件>     # 无字幕视频云端转写
+../../../bin/kg-node kg-bilibili/scripts/bili.mjs download <bvid>   # 下载（转写前先下音频）
 ```
 
 ## 工作流
 
+> **强制**：任何场景推荐 B站视频给主人，**每条必须附完整可点击链接**
+> `https://www.bilibili.com/video/BV…`（用返回的 bvid 拼）。只给标题不给链接 = 不合格。
+
 ### 形态 2：指定视频（先跑通这个）
 
 1. 用户给链接/BV 号。
-2. `get_transcript.py <url>` 抓字幕。
+2. `bili subtitle <bvid>` 抓字幕。
    - 有字幕 → 把纯文本存进 `raw/`（文件名如 `raw/bili-<bvid>-<标题>.md`，开头记链接/UP主/抓取日期做溯源）。
-   - 无字幕 → 告知用户；征得同意后加 `--asr` 下音频本地转写（L1，委派底层库 kg-media-to-text，自动按平台选 mlx/faster）。
+   - 无字幕 → 告知用户；征得同意后 `bili download <bvid>` 下视频 → 用 ffmpeg 提音频 → `bili asr <音频>` 云端转写。
 3. 读 `raw/` 里的转写，向用户做 AI 解析：讲清楚讲了什么、关键结论、和用户已有知识的关联。
 4. 按 `AGENTS.md` 判断沉淀方式：
    - 纯通用知识 → 只在 `index.md` 补唤醒关键词。
-   - 有个人判断/项目上下文/踩坑/独特理解 → 写 `wiki/` 对应领域页，主动建双链 `[[...]]`。
+   - 有个人判断/项目上下文/踩坑/独特理解 → 写 `wiki/` 对应领域页，有真实关联才建双链 `[[...]]`（宁缺毋滥，没关联不建）。
 5. 追加 `log.md` 一条。
 
 ### 形态 1：每日精选 5 个
 
-1. `list_videos.py toview` 拉稍后再看（收藏用 `favlist` + `fav`）。
+1. `bili toview` 拉稍后再看（收藏用 `bili favlist`）。
 2. **筛选口径**（用户已定）：
    - **领域不限，只按「是否知识向」筛，不按「是不是技术」筛。** 用户的知识库涵盖技术、话术与沟通、心理、商业财经、人文历史、健康、生活技艺等多个领域，技术只是其中一块。
    - 判据是**看完能不能带走一个可复用的认知/方法/判断**，而不是题材属于哪个分区。
@@ -120,39 +55,25 @@ cp .env.example .env    # Windows: copy .env.example .env
    - **别被 `tname` 分区骗了**：B站分区很粗，「人文历史」下可能是话术解析，「日常」下可能是硬核技术连载，「野生技能协会」常放原理讲解。**以标题+简介的实际内容为准。**
    - **不卡时长**，「合适、值得消化」为准。
    - 给候选时**主动跨领域搭配**（例如 3 技术 + 2 非技术），不要一次全给同一个领域，否则用户只能在技术里挑。
-3. 选出候选（约 5 个）给用户过目，附标题/UP主/时长/一句话理由，让用户拍板选几个。
+3. 选出候选（约 5 个）给用户过目，附标题/UP主/时长/一句话理由 + **完整链接**，让用户拍板选几个。
 4. 对选中的逐个走「形态 2」的第 2~5 步。
 
 ### 形态 3：主动搜索（不限于收藏）
 
 用户说「帮我找找讲 X 的视频」时：
 
-1. `search_videos.py "<关键词>"` 搜索。**善用参数收窄**：
-   - 想看经典/高质量 → `--order click`（播放多）或 `--order stow`（收藏多）
-   - 想看最新进展 → `--order pubdate --days 90`
-   - 过滤水视频 → `--min-min 8`（太短的通常没干货）
-   - 长视频难消化 → `--max-min 60`
+1. `bili search "<关键词>"` 搜索（暂不支持 --order/时长过滤，在结果里手动筛）。
 2. **筛选口径同形态 1**：编程/技术优先，其次知识科普，排除娱乐向。看 `tname`(分区)、`play`(播放量)、`author` 判断质量。
-3. 挑几个候选给用户过目（标题/UP主/时长/播放量/一句话理由），用户拍板。
+3. 挑几个候选给用户过目（标题/UP主/时长/播放量/一句话理由 + **完整链接**），用户拍板。
 4. 选中的走形态 2 的抓字幕 → 解析 → 沉淀流程。
 
 > 搜索结果的 `play`(播放量) 和 `danmaku` 可作质量参考，但别只看数字——小众技术视频播放量天然低，内容可能更硬。
 
-## 专名热词（仅 --asr 时生效）
-
-走本地转写时会自动组装热词：**UP主名**当说话人（进"我是…"句式），
-**标题+简介**里抽出的专名当话题词。`--hotword` / `--hotword-speaker` 可手动补。
-
-- 人名务必用 `--hotword-speaker`：实测人名要进"我是…"句式才纠得对。
-- 简介质量决定效果：只有一个社区链接的视频抽不到专名（URL 会被过滤掉）。
-- 详细原理和实测数据见 `../../../kg-media-to-text/SKILL.md`。
-
 ## 边界与坑
 
-- **无字幕视频**：默认只标注，不自作主张转写；需显式 `--asr`（消耗本地算力）。转写结果标注"可能有识别误差"。
+- **无字幕视频**：默认只标注，不自作主张转写；需征得同意再转写（`bili asr` 云端，转写结果标注"可能有识别误差"）。
 - **ASR 不区分说话人**：多人对谈是连续文本，不知道谁在说。解析时不确定就说不确定。
-- **yt-dlp 抓 B 站高清格式不稳**（社区已知问题），但本 skill 只用它 `-x` 抽音轨，不受影响。
-- 鉴权失败/风控：多半是 `SESSDATA` 过期，让用户重填 `.env`。
+- 鉴权失败/风控：多半是 cookie 过期，提醒主人重新 `bili qrcode` + `bili login`。
 - 批量拉取别太猛，B 站有频率限制。
 - 处理图片/长文时遵守 `AGENTS.md`：优先文字和代码，少截图；通用知识只进 index 不写详细页。
 - **不要因为内容「不是技术」就降级处理**：非技术领域同样按 Ingest 流程判断，同样可以进 `wiki/`。判断标准永远是「抽掉用户的个人上下文后 AI 还能不能完整答出」，不是题材。
@@ -160,7 +81,9 @@ cp .env.example .env    # Windows: copy .env.example .env
 
 ## 已验证
 
-- 稍后再看列表：604 条，字段完整。
-- 有字幕视频（L0 白拿）：抓到 27060 字 AI 字幕（`ai-zh`）。
-- 无字幕视频 + `--asr`（L1）：3 分钟视频共 25 秒完成（yt-dlp 抽音 1.9MB + mlx-whisper 转写 1350 字），技术术语（线程池/内存溢出/GC Root）识别准确。
-- 搜索功能：`Rust 异步编程`(40条)、`AI Agent 开发 --order pubdate --days 365 --min-min 8 --max-min 60`(过滤后 6 条,均为近期长视频)、`TypeScript 类型体操 --order click`(按播放量正确排序)。标题的 `<em>` 高亮标签已清除，时长/播放量/发布日期/分区字段完整。
+- 稍后再看列表：942 条，字段完整。
+- 查 UP：罗翔 3216 万粉、投稿 30、动态 12。
+- 收藏夹：26 个。
+- 评论：33808 条。
+- 直播：房间 6（英雄联盟赛事）47 万在线。
+- 搜索、字幕、弹幕、下载均正常。

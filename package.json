@@ -9,5 +9,9 @@
   },
   "engines": {
     "node": ">=22.13"
+  },
+  "dependencies": {
+    "@renmu/bili-api": "^2.15.0",
+    "qrcode": "^1.5.4"
   }
 }
