@@ -1,6 +1,6 @@
 ---
 name: kg-ingest
-description: 内容摄入统一入口：把外部平台的内容抓进知识库。覆盖 B站、YouTube、知乎、小红书、微信公众号、小宇宙播客、GitHub、微信读书。当用户丢一个链接过来（多数情况下不附加说明，默认意图就是「存进知识库」）、说「解析这个视频/文章/播客」「这篇存一下」「我 star 了哪些仓库」「哪些书该读了」时使用。本 SKILL.md 只做路由，认出平台后去读对应平台的 references 说明拿具体做法。不负责本地文档与普通网页（走 kg-doc）、库内检索（kg-ask）、跨项目结论捕获（kg-capture）。
+description: 内容摄入统一入口：把外部平台的内容抓进知识库。覆盖 B站、YouTube、知乎、小红书、微信公众号、小宇宙播客、GitHub、微信读书；未适配的任意网页链接也在这里按兜底顺序路由（先 kg-doc 静态抓取，再 kg-browser 登录态兜底）。当用户丢一个链接过来（多数情况下不附加说明，默认意图就是「存进知识库」）、说「解析这个视频/文章/播客」「这篇存一下」「这个链接看看能不能抓」「我 star 了哪些仓库」「哪些书该读了」时使用。本 SKILL.md 只做路由，认出平台后去读对应平台的 references 说明拿具体做法。不负责本地文档（走 kg-doc）、库内检索（kg-ask）、跨项目结论捕获（kg-capture）。
 ---
 
 # 内容摄入
@@ -19,14 +19,18 @@ description: 内容摄入统一入口：把外部平台的内容抓进知识库�
 | `mp.weixin.qq.com/s/…` | `references/wechat/index.md` |
 | `xiaoyuzhoufm.com/episode/…` | `references/xiaoyuzhou/index.md` |
 | `github.com/…`、「我 star 了什么」「这个 issue 存下来」 | `references/github/index.md` |
+| `x.com` / `twitter.com` / `t.co` | `references/x/index.md` |
+| `xiaoheihe.cn`、小黑盒分享 | `references/xiaoheihe/index.md` |
 | 「书架」「划线」「哪些书没读」「读了多久」 | `references/weread/index.md` |
 
-**不在这张表里的**：
+**不在这张表里的** → 读 `references/web/index.md`，按下面的顺序兜底，不要停下来反问「这个怎么抓」：
 
-- 本地文档（PDF/Word/Excel/PPT）、普通技术博客 → `kg-doc`
-- 要登录态或有 JS 挑战的任意网页 → `kg-browser`（知乎就是委派它）
-- 小红书**搜索结果**和**收藏夹** → 不是 SSR，得走 `kg-browser`，
-  本 skill 只处理单篇（详见 xiaohongshu/index.md 的边界说明）
+1. **先试 `kg-doc` 静态抓取**：普通技术博客、文档站、服务端渲染页面通常一次成功。
+2. **静态抓不到（403 / JS 渲染 / 要登录 / 内容为空）→ 委派 `kg-browser`**：
+   用用户真实 Chrome 的登录态读正文，知乎、小红书搜索/收藏夹、小黑盒、X 都走这条。
+3. **本地文档**（PDF/Word/Excel/PPT）不在本 skill 路由里 → 直接 `kg-doc`。
+4. 小红书**搜索结果**和**收藏夹** → 不是 SSR，得走 `kg-browser`，
+   本 skill 只处理单篇（详见 xiaohongshu/index.md 的边界说明）。
 
 ## 为什么合成一个 skill
 
