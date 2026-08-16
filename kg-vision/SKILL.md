@@ -19,7 +19,7 @@ description: 图片识别（多模态）。当前主模型（deepseek）没有�
 ## 用法
 
 ```bash
-node ~/.agents/skills/kg-wiki-skills/kg-vision/scripts/vision.mjs <图片路径> [问题]
+node scripts/vision.mjs <图片路径> [问题]
 ```
 
 - `<图片路径>`：本地图片（jpg/png/webp/gif）
