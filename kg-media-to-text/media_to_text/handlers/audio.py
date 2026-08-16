@@ -323,7 +323,12 @@ _MODEL_CACHE: dict[tuple[str, str, str], tuple[WhisperModel, str]] = {}
 
 
 def _get_model(name: str) -> tuple[WhisperModel, str]:
-    """按 (name, cuda, float16) → (name, cpu, int8) 顺序取可用模型，带缓存。"""
+    """按 (name, cuda, float16) → (name, cpu, int8) 顺序取可用模型，带缓存。
+
+    模型加载先走 ``local_files_only=True``：模型已在 HF 缓存里时零网络请求，
+    避免每次冷启动都卡一次 HF 元数据请求（WSL 下实测卡 2 分钟+）。
+    缓存未命中才回落到在线模式，不破坏首次自动下载。
+    """
     from faster_whisper import WhisperModel
 
     for key in ((name, "cuda", "float16"), (name, "cpu", "int8")):
@@ -331,12 +336,17 @@ def _get_model(name: str) -> tuple[WhisperModel, str]:
         if cached:
             return cached
         try:
-            m = WhisperModel(key[0], device=key[1], compute_type=key[2])
-            entry = (m, key[1])
-            _MODEL_CACHE[key] = entry
-            return entry
+            try:
+                m = WhisperModel(
+                    key[0], device=key[1], compute_type=key[2], local_files_only=True
+                )
+            except Exception:
+                m = WhisperModel(key[0], device=key[1], compute_type=key[2])
         except Exception:
             continue
+        entry = (m, key[1])
+        _MODEL_CACHE[key] = entry
+        return entry
     # 理论上不会到这儿：cpu+int8 兜底过；万一也挂，抛原始错误给调用方。
     raise RuntimeError(f"faster-whisper 模型加载失败: {name}")
 

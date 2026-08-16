@@ -6,17 +6,20 @@ import argparse
 import json
 import sys
 
-from media_to_text import MediaToTextError, to_text
+from media_to_text import MediaToTextError, SourceKind, to_text
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("source")
     parser.add_argument("--model")
+    parser.add_argument("--kind", choices=["audio", "video"])
+    parser.add_argument("--language")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
+    kind = SourceKind(args.kind) if args.kind else None
     try:
-        result = to_text(args.source, model=args.model)
+        result = to_text(args.source, kind=kind, model=args.model, language=args.language)
     except MediaToTextError as error:
         print(f"[错误] {error}", file=sys.stderr)
         return 1
